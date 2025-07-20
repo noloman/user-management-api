@@ -1,4 +1,4 @@
-package me.manulorenzo.usermanagement;
+package me.manulorenzo.usermanagement.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

@@ -1,6 +1,6 @@
 package me.manulorenzo.usermanagement.controller;
 
-import me.manulorenzo.usermanagement.JwtUtil;
+import me.manulorenzo.usermanagement.security.JwtUtil;
 import me.manulorenzo.usermanagement.dto.LoginRequest;
 import me.manulorenzo.usermanagement.dto.LoginResponse;
 import me.manulorenzo.usermanagement.dto.RegisterRequest;
