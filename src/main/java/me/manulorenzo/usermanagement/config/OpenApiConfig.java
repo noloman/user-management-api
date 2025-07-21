@@ -44,9 +44,9 @@ public class OpenApiConfig {
                                 """)
                         .version("1.0.0")
                         .contact(new Contact()
-                                .name("Manuel Lorenzo")
-                                .email("your.email@example.com")
-                                .url("https://github.com/manulorenzo"))
+                                .name("Manuel Lorenzo Parejo")
+                                .email("manulorenzop@gmail.com")
+                                .url("https://github.com/noloman/usermanagement"))
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT")));
