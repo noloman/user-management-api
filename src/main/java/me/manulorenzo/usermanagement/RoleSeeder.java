@@ -1,17 +1,15 @@
 package me.manulorenzo.usermanagement;
 
+import lombok.AllArgsConstructor;
 import me.manulorenzo.usermanagement.entity.Role;
 import me.manulorenzo.usermanagement.repository.RoleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+@AllArgsConstructor
 @Component
 public class RoleSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
-
-    public RoleSeeder(RoleRepository roleRepository) {
-        this.roleRepository = roleRepository;
-    }
 
     @Override
     public void run(String... args) {
