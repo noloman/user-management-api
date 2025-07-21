@@ -1,6 +1,8 @@
 package me.manulorenzo.usermanagement.config;
 
 import me.manulorenzo.usermanagement.security.JwtAuthFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,29 +19,42 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtFilter) throws Exception {
-        return http
-                .csrf(
-                        csrf -> csrf.disable()
-                ).sessionManagement(
-                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+        logger.info("Configuring Security Filter Chain");
+
+        SecurityFilterChain chain = http
+                .csrf(csrf -> {
+                    logger.debug("Disabling CSRF protection");
+                    csrf.disable();
+                })
+                .sessionManagement(session -> {
+                    logger.debug("Setting session creation policy to STATELESS");
+                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+                })
+                .authorizeHttpRequests(auth -> {
+                    logger.debug("Configuring authorization rules");
+                    auth.requestMatchers("/api/auth/**").permitAll()
+                            .anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+
+        logger.info("Security Filter Chain configured successfully");
+        return chain;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+        logger.info("Creating BCrypt Password Encoder bean");
         return new BCryptPasswordEncoder();
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        logger.info("Creating Authentication Manager bean");
         return authConfig.getAuthenticationManager();
     }
 }
