@@ -1,0 +1,55 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: usermanagement-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: usermanagement_dev
+      POSTGRES_USER: userapp
+      POSTGRES_PASSWORD: userapp123
+      POSTGRES_ROOT_PASSWORD: root123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U userapp -d usermanagement_dev" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: usermanagement-app
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/usermanagement_dev
+      - SPRING_DATASOURCE_USERNAME=userapp
+      - SPRING_DATASOURCE_PASSWORD=userapp123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - app_logs:/app/logs
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

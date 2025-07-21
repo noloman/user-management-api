@@ -1,6 +1,20 @@
 spring:
   application:
     name: UserManagement
+  datasource:
+    url: jdbc:postgresql://localhost:5432/usermanagement_dev
+    username: userapp
+    password: userapp123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # or 'validate'/'none' in prod, 'create-drop' for first-time setup ONLY
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
 
 server:
   port: 8081
@@ -11,6 +25,12 @@ logging:
     me.manulorenzo.usermanagement: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+
+# Optionally comment/remove H2 console/connection
+# h2:
+#  console:
+#    enabled: false
+
 
 # OpenAPI/Swagger configuration
 springdoc:
