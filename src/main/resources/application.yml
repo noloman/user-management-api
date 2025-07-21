@@ -1,9 +1,32 @@
 spring:
   application:
     name: UserManagement
+
+server:
+  port: 8081
+
 logging:
   level:
     root: INFO
     me.manulorenzo.usermanagement: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+
+# OpenAPI/Swagger configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: false
+    displayRequestDuration: true
+    displayOperationId: false
+    defaultModelsExpandDepth: 2
+    defaultModelExpandDepth: 2
+  show-actuator: false
+  writer-with-default-pretty-printer: true

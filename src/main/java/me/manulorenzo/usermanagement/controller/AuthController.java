@@ -1,5 +1,11 @@
 package me.manulorenzo.usermanagement.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import me.manulorenzo.usermanagement.security.JwtUtil;
 import me.manulorenzo.usermanagement.dto.LoginRequest;
 import me.manulorenzo.usermanagement.dto.LoginResponse;
@@ -17,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Authentication", description = "User registration and login endpoints")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -32,6 +39,15 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
+    @Operation(
+            summary = "Register a new user",
+            description = "Creates a new user account. The first user gets ADMIN role, subsequent users get USER role."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User registered successfully"),
+            @ApiResponse(responseCode = "400", description = "Registration failed - username already exists or invalid data",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         logger.info("Registration request received for username: {}", request.getUsername());
@@ -49,6 +65,16 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "Login user",
+            description = "Authenticates user credentials and returns JWT token for API access"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login successful",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Login failed - invalid credentials",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         logger.info("Login attempt for username: {}", request.getUsername());
