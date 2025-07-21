@@ -28,4 +28,16 @@ public class User {
     @Getter
     @ManyToMany(fetch = FetchType.EAGER)
     private Set<Role> roles = new HashSet<>();
+    @Setter
+    @Getter
+    private String email;
+    @Setter
+    @Getter
+    private String fullName;
+    @Setter
+    @Getter
+    private String bio;
+    @Setter
+    @Getter
+    private String imageUrl;
 }

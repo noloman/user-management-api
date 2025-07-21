@@ -1,6 +1,7 @@
 package me.manulorenzo.usermanagement.service;
 
 import me.manulorenzo.usermanagement.dto.RegisterRequest;
+import me.manulorenzo.usermanagement.dto.UserProfile;
 import me.manulorenzo.usermanagement.entity.Role;
 import me.manulorenzo.usermanagement.entity.User;
 import me.manulorenzo.usermanagement.repository.RoleRepository;
@@ -119,5 +120,81 @@ class UserServiceTest {
                 RuntimeException.class,
                 () -> userService.addRoleToUser("pete", "MISSING")
         );
+    }
+
+    @Test
+    void updateUserProfile_ShouldThrow_WhenChangingToExistingUsername() {
+        User oldUser = new User();
+        oldUser.setUsername("oldUser");
+        oldUser.setEmail("old@example.com");
+        when(userRepo.findByUsername("oldUser")).thenReturn(Optional.of(oldUser));
+        when(userRepo.findByUsername("newName")).thenReturn(Optional.of(new User())); // already taken
+
+        UserProfile changes = new UserProfile();
+        changes.setUsername("newName"); // try changing to taken username
+        changes.setEmail("other@example.com");
+
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () ->
+                userService.updateUserProfile("oldUser", changes));
+    }
+
+    @Test
+    void updateUserProfile_ShouldThrow_WhenChangingToExistingEmail() {
+        User oldUser = new User();
+        oldUser.setUsername("carl");
+        oldUser.setEmail("carl@ex.com");
+        when(userRepo.findByUsername("carl")).thenReturn(Optional.of(oldUser));
+        when(userRepo.findByEmail("dupe@ex.com")).thenReturn(Optional.of(new User())); // already taken
+
+        UserProfile changes = new UserProfile();
+        changes.setUsername("carl");
+        changes.setEmail("dupe@ex.com"); // try changing to taken email
+
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () ->
+                userService.updateUserProfile("carl", changes));
+    }
+
+    @Test
+    void updateUserProfile_ShouldUpdate_WhenUsernameAndEmailUnique() {
+        User oldUser = new User();
+        oldUser.setUsername("jdoe");
+        oldUser.setEmail("jdoe@ex.com");
+        when(userRepo.findByUsername("jdoe")).thenReturn(Optional.of(oldUser));
+        when(userRepo.findByUsername("newjdoe")).thenReturn(Optional.empty());
+        when(userRepo.findByEmail("new@ex.com")).thenReturn(Optional.empty());
+
+        UserProfile changes = new UserProfile();
+        changes.setUsername("newjdoe");
+        changes.setEmail("new@ex.com");
+        changes.setFullName("Joe Doe");
+        changes.setBio("Bio");
+        changes.setImageUrl("A");
+
+        userService.updateUserProfile("jdoe", changes);
+        verify(userRepo).save(oldUser);
+        org.junit.jupiter.api.Assertions.assertEquals("newjdoe", oldUser.getUsername());
+        org.junit.jupiter.api.Assertions.assertEquals("new@ex.com", oldUser.getEmail());
+        org.junit.jupiter.api.Assertions.assertEquals("Joe Doe", oldUser.getFullName());
+    }
+
+    @Test
+    void updateUserProfile_ShouldUpdateFields_WhenNoUsernameOrEmailChange() {
+        User oldUser = new User();
+        oldUser.setUsername("emma");
+        oldUser.setEmail("emma@ex.com");
+        when(userRepo.findByUsername("emma")).thenReturn(Optional.of(oldUser));
+
+        UserProfile changes = new UserProfile();
+        changes.setUsername("emma");
+        changes.setEmail("emma@ex.com");
+        changes.setFullName("Emma Watson");
+        changes.setBio("Actress");
+        changes.setImageUrl("img");
+
+        userService.updateUserProfile("emma", changes);
+        verify(userRepo).save(oldUser);
+        org.junit.jupiter.api.Assertions.assertEquals("emma", oldUser.getUsername());
+        org.junit.jupiter.api.Assertions.assertEquals("Emma Watson", oldUser.getFullName());
+        org.junit.jupiter.api.Assertions.assertEquals("Actress", oldUser.getBio());
     }
 }
