@@ -8,6 +8,10 @@
       <item index="3" class="java.lang.String" itemvalue="org.springframework.web.bind.annotation.PostMapping" />
       <item index="4" class="java.lang.String" itemvalue="org.springframework.web.bind.annotation.RestController" />
     </list>
+    <writeAnnotations>
+      <writeAnnotation name="org.springframework.beans.factory.annotation.Autowired" />
+      <writeAnnotation name="org.springframework.test.context.bean.override.mockito.MockitoBean" />
+    </writeAnnotations>
   </component>
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="MavenProjectsManager">
