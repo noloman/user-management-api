@@ -1,0 +1,458 @@
+openapi: 3.0.3
+info:
+  title: User Management API
+  version: "1.0.0"
+  description: "User management system with JWT authentication, PostgreSQL, RBAC (ADMIN/USER), Docker-first."
+
+servers:
+  - url: http://localhost:8082
+    description: Docker
+  - url: http://localhost:8081
+    description: Local
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          example: admin123
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          example: admin123
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9...
+        refreshToken:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9...
+        refreshToken:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    UserProfile:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john_doe
+        email:
+          type: string
+          example: john@example.com
+        fullName:
+          type: string
+          example: John Doe
+        bio:
+          type: string
+          example: Developer
+        imageUrl:
+          type: string
+          example: https://example.com/me.jpg
+
+    UserRoles:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john_doe
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [ROLE_ADMIN, ROLE_USER]
+          example: [ROLE_USER, ROLE_ADMIN]
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user (first user gets ADMIN, others get USER)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: admin
+              password: admin123
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "User registered"
+        '400':
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Username already exists"
+
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: admin
+              password: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9...
+                refreshToken: 550e8400-e29b-41d4-a716-446655440000
+        '400':
+          description: Login failed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Login failed: Bad credentials"
+
+  /api/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9...
+                refreshToken: 550e8400-e29b-41d4-a716-446655440000
+        '400':
+          description: Invalid/expired refresh token
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Token refresh failed"
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Logged out successfully"
+        '400':
+          description: Logout failed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Logout failed: Database error"
+
+  /api/profile:
+    get:
+      tags: [Profile]
+      summary: Get current user's profile
+      responses:
+        '200':
+          description: Profile fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              example:
+                username: john_doe
+                email: john@example.com
+                fullName: John Doe
+                bio: Developer
+                imageUrl: https://example.com/me.jpg
+
+    put:
+      tags: [Profile]
+      summary: Update current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+            example:
+              email: updated@example.com
+              fullName: Updated Name
+              bio: Updated bio
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              example:
+                username: john_doe
+                email: updated@example.com
+                fullName: Updated Name
+                bio: Updated bio
+                imageUrl: https://example.com/me.jpg
+
+  /api/profile/roles:
+    get:
+      tags: [Profile]
+      summary: Get current user's roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of roles for the current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                      enum: [ROLE_ADMIN, ROLE_USER]
+                example:
+                  roles:
+                    - ROLE_ADMIN
+                    - ROLE_USER
+
+  /api/admin/addRole:
+    post:
+      tags: [Admin Operations]
+      summary: Add role to user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: roleName
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ADMIN, USER]
+      responses:
+        '200':
+          description: Role added
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Role USER successfully added to user user1"
+        '400':
+          description: Failed to add role
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Failed to add role: User not found"
+
+  /api/users/{username}/roles:
+    get:
+      tags: [Admin Operations]
+      summary: Get roles for a specific user (ADMIN only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of roles for the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                      enum: [ROLE_ADMIN, ROLE_USER]
+                example:
+                  username: jane
+                  roles:
+                    - ROLE_USER
+        '403':
+          description: Requires ADMIN role to access other users' roles
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Forbidden"
+
+  /api/admin/test:
+    post:
+      tags: [Admin Operations]
+      summary: Test admin access
+      description: This endpoint requires an ADMIN token and confirms RBAC is working.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Admin access confirmed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Admin access confirmed for user: admin with authorities: [ROLE_ADMIN]"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Unauthorized"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Access denied - ADMIN role required"
+
+  /api/admin/test-no-auth:
+    post:
+      tags: [Admin Operations]
+      summary: Test admin endpoint (no authentication required)
+      description: This test endpoint requires no authentication, for debugging only.
+      security: []
+      responses:
+        '200':
+          description: Test response for no-auth admin
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Admin test endpoint (no auth)"
+
+  /actuator/health:
+    get:
+      tags: [Health & Monitoring]
+      summary: Health check endpoint
+      description: Returns overall health status.
+      security: []
+      responses:
+        '200':
+          description: Application health info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  components:
+                    type: object
+                    example: { db: { status: "UP" } }
+
+  /actuator/info:
+    get:
+      tags: [Health & Monitoring]
+      summary: Application info endpoint
+      description: Returns application version, build, and info data.
+      security: []
+      responses:
+        '200':
+          description: Application info
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  app:
+                    version: 1.0.0
+                    name: User Management API
+
+security:
+  - BearerAuth: []
+tags:
+  - name: Authentication
+  - name: Profile
+  - name: Admin Operations
+  - name: Health & Monitoring
