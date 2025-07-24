@@ -244,7 +244,7 @@ Content-Type: application/json
 #### Refresh Token
 
 ```http
-POST /api/auth/refresh-token
+POST /api/auth/refresh
 Content-Type: application/json
 
 {
