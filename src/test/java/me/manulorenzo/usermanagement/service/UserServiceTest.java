@@ -6,9 +6,9 @@ import me.manulorenzo.usermanagement.entity.Role;
 import me.manulorenzo.usermanagement.entity.User;
 import me.manulorenzo.usermanagement.repository.RoleRepository;
 import me.manulorenzo.usermanagement.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,8 +29,24 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder encoder;
 
-    @InjectMocks
     private UserService userService;
+
+    @BeforeEach
+    void setUp() {
+        // Initialize UserService with test configuration values
+        String adminRoleName = "ADMIN";
+        String userRoleName = "USER";
+        boolean firstUserAdmin = true;
+
+        userService = new UserService(
+                adminRoleName,
+                userRoleName,
+                firstUserAdmin,
+                userRepo,
+                roleRepo,
+                encoder
+        );
+    }
 
     @Test
     void register_ShouldSaveUser_WhenValidRequest() {

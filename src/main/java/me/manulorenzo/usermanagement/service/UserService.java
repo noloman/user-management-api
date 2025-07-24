@@ -8,6 +8,7 @@ import me.manulorenzo.usermanagement.repository.RoleRepository;
 import me.manulorenzo.usermanagement.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,15 +20,29 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    private final String adminRoleName;
+    private final String userRoleName;
+    private final boolean firstUserAdmin;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public UserService(
+            @Value("${app.roles.admin}") String adminRoleName,
+            @Value("${app.roles.user}") String userRoleName,
+            @Value("${app.security.first-user-admin}") boolean firstUserAdmin,
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder) {
+        this.adminRoleName = adminRoleName;
+        this.userRoleName = userRoleName;
+        this.firstUserAdmin = firstUserAdmin;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        logger.info("UserService initialized");
+
+        logger.info("UserService initialized with admin role: '{}', user role: '{}', first-user-admin: {}",
+                adminRoleName, userRoleName, firstUserAdmin);
     }
 
     public void register(RegisterRequest request) {
@@ -46,8 +61,8 @@ public class UserService {
             long userCount = userRepository.count();
             logger.debug("Current user count: {}", userCount);
 
-            // First user = ADMIN, others = USER
-            String roleName = userCount == 0 ? "ADMIN" : "USER";
+            // Determine role based on configuration
+            String roleName = (userCount == 0 && firstUserAdmin) ? adminRoleName : userRoleName;
             logger.info("Assigning {} role to new user: {}", roleName, request.getUsername());
 
             Role role = roleRepository.findByName(roleName)

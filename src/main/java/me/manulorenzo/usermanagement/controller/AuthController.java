@@ -10,6 +10,10 @@ import me.manulorenzo.usermanagement.security.JwtUtil;
 import me.manulorenzo.usermanagement.dto.LoginRequest;
 import me.manulorenzo.usermanagement.dto.LoginResponse;
 import me.manulorenzo.usermanagement.dto.RegisterRequest;
+import me.manulorenzo.usermanagement.dto.RefreshTokenRequest;
+import me.manulorenzo.usermanagement.dto.RefreshTokenResponse;
+import me.manulorenzo.usermanagement.entity.RefreshToken;
+import me.manulorenzo.usermanagement.service.RefreshTokenService;
 import me.manulorenzo.usermanagement.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,11 +37,17 @@ public class AuthController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
+    private final UserDetailsService userDetailsService;
 
-    public AuthController(UserService userService, AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public AuthController(UserService userService, AuthenticationManager authenticationManager,
+                          JwtUtil jwtUtil, RefreshTokenService refreshTokenService,
+                          UserDetailsService userDetailsService) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
+        this.userDetailsService = userDetailsService;
     }
 
     @Operation(
@@ -67,7 +78,7 @@ public class AuthController {
 
     @Operation(
             summary = "Login user",
-            description = "Authenticates user credentials and returns JWT token for API access"
+            description = "Authenticates user credentials and returns JWT access token and refresh token"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Login successful",
@@ -85,15 +96,74 @@ public class AuthController {
             );
 
             UserDetails user = (UserDetails) authentication.getPrincipal();
-            String jwt = jwtUtil.generateToken(user);
+            String accessToken = jwtUtil.generateToken(user);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(request.getUsername());
 
             logger.info("Login successful for username: {} with authorities: {}",
                     request.getUsername(), user.getAuthorities());
 
-            return ResponseEntity.ok(new LoginResponse(jwt));
+            return ResponseEntity.ok(new LoginResponse(accessToken, refreshToken.getToken()));
         } catch (Exception e) {
             logger.error("Login failed for username {}: {}", request.getUsername(), e.getMessage());
             return ResponseEntity.badRequest().body("Login failed: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Refresh access token",
+            description = "Uses refresh token to generate a new access token"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully",
+                    content = @Content(schema = @Schema(implementation = RefreshTokenResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid or expired refresh token",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+        logger.info("Token refresh request received");
+
+        try {
+            String requestRefreshToken = request.getRefreshToken();
+
+            RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken)
+                    .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+
+            refreshToken = refreshTokenService.verifyExpiration(refreshToken);
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(refreshToken.getUser().getUsername());
+            String newAccessToken = jwtUtil.generateToken(userDetails);
+
+            logger.info("Token refreshed successfully for user: {}", refreshToken.getUser().getUsername());
+
+            return ResponseEntity.ok(new RefreshTokenResponse(newAccessToken));
+
+        } catch (Exception e) {
+            logger.error("Token refresh failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("Token refresh failed: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Logout user",
+            description = "Invalidates the user's refresh token"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logout successful"),
+            @ApiResponse(responseCode = "400", description = "Logout failed",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody RefreshTokenRequest request) {
+        logger.info("Logout request received");
+
+        try {
+            refreshTokenService.deleteByToken(request.getRefreshToken());
+            logger.info("Logout successful");
+            return ResponseEntity.ok("Logged out successfully");
+        } catch (Exception e) {
+            logger.error("Logout failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("Logout failed: " + e.getMessage());
         }
     }
 }

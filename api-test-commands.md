@@ -44,7 +44,7 @@ curl -X POST "${BASE_URL}/api/auth/register" \
   }'
 ```
 
-### Login as Admin (Save the token for admin operations)
+### Login as Admin (Save both tokens for operations)
 
 ```bash
 curl -X POST "${BASE_URL}/api/auth/login" \
@@ -53,6 +53,15 @@ curl -X POST "${BASE_URL}/api/auth/login" \
     "username": "admin",
     "password": "admin123"
   }'
+```
+
+**Response includes both access token (15min) and refresh token (7 days):**
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+}
 ```
 
 ### Login as Regular User
@@ -64,6 +73,81 @@ curl -X POST "${BASE_URL}/api/auth/login" \
     "username": "user1",
     "password": "user123"
   }'
+```
+
+### Refresh Access Token (When access token expires)
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+  }'
+```
+
+**Response returns new access token:**
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Logout (Invalidates refresh token)
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/logout" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+  }'
+```
+
+## 1b. Profile Endpoints
+
+### Get Current User Profile
+
+```bash
+curl -X GET "${BASE_URL}/api/profile" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+**Example Response:**
+
+```json
+{
+  "username": "user1",
+  "email": "user1@example.com",
+  "fullName": "User One",
+  "bio": "I like turtles.",
+  "imageUrl": "https://cdn.example.com/user1.png"
+}
+```
+
+### Update Current User Profile
+
+```bash
+curl -X PUT "${BASE_URL}/api/profile" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -d '{
+    "email": "newmail@example.com",
+    "fullName": "New Name",
+    "bio": "Bio updated!",
+    "imageUrl": "https://cdn.example.com/newpic.png"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "username": "user1",
+  "email": "newmail@example.com",
+  "fullName": "New Name",
+  "bio": "Bio updated!",
+  "imageUrl": "https://cdn.example.com/newpic.png"
+}
 ```
 
 ## 2. Admin Endpoints (Require ADMIN role)
@@ -146,6 +230,36 @@ curl -X POST "${BASE_URL}/api/auth/login" \
   }'
 ```
 
+### Refresh with Invalid Token (Should fail)
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "invalid-refresh-token"
+  }'
+```
+
+### Refresh with Expired Token (Should fail)
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "expired-refresh-token-uuid"
+  }'
+```
+
+### Logout with Invalid Token (Should succeed silently)
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/logout" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "invalid-refresh-token"
+  }'
+```
+
 ### Try Admin Endpoint without Token (Should fail with 401)
 
 ```bash
@@ -208,6 +322,22 @@ curl -X POST "${BASE_URL}/api/auth/login" \
   }'
 ```
 
+### Refresh with Missing Token
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Logout with Missing Token
+
+```bash
+curl -X POST "${BASE_URL}/api/auth/logout" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
 ### Add Role with Missing Parameters
 
 ```bash
@@ -267,6 +397,22 @@ USER_LOGIN=$(curl -s -X POST "${BASE_URL}/api/auth/login" \
   -d '{"username": "user1", "password": "user123"}')
 echo "Response: $USER_LOGIN"
 
+echo -e "\n=== 7. Refresh Token Test ==="
+REFRESH_TOKEN=$(echo $USER_LOGIN | jq -r '.refreshToken')
+echo "Refresh Token: $REFRESH_TOKEN"
+
+echo -e "\n=== 8. Refresh Access Token ==="
+REFRESH_ACCESS_TOKEN=$(curl -s -X POST "${BASE_URL}/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
+echo "Response: $REFRESH_ACCESS_TOKEN"
+
+echo -e "\n=== 9. Logout ==="
+LOGOUT=$(curl -s -X POST "${BASE_URL}/api/auth/logout" \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
+echo "Response: $LOGOUT"
+
 echo -e "\n=== Test Complete ==="
 ```
 
@@ -288,12 +434,17 @@ To import into Postman, create a collection with these requests:
 │   ├── POST Register Admin
 │   ├── POST Register User
 │   ├── POST Login Admin
-│   └── POST Login User
+│   ├── POST Login User
+│   ├── POST Refresh Token
+│   └── POST Logout
 ├── 📁 Admin Operations
 │   ├── POST Test Admin Access
 │   ├── POST Test No Auth
 │   ├── POST Add Role to User
 │   └── POST Add Role (Error Cases)
+├── 📁 Profile Endpoints
+│   ├── GET Get Current User Profile
+│   └── PUT Update Current User Profile
 └── 📁 Error Cases
     ├── POST Register Duplicate
     ├── POST Login Wrong Password
@@ -303,9 +454,14 @@ To import into Postman, create a collection with these requests:
 ## Notes:
 
 1. **Port**: Adjust the port from 8081 to 8080 if needed
-2. **JWT Tokens**: Copy the token from login responses and use in subsequent requests
-3. **Role Assignment**: First user gets ADMIN role, subsequent users get USER role
-4. **Error Handling**: The API returns descriptive error messages for debugging
-5. **Logging**: Check application logs for detailed information about each request
+2. **JWT Tokens**:
+    - **Access Token**: Expires in 15 minutes, used for API authorization
+    - **Refresh Token**: Expires in 7 days, used to get new access tokens
+    - Copy tokens from login responses and use in subsequent requests
+3. **Token Flow**: When access token expires, use refresh token to get a new one
+4. **Role Assignment**: First user gets ADMIN role, subsequent users get USER role
+5. **Error Handling**: The API returns descriptive error messages for debugging
+6. **Logging**: Check application logs for detailed information about each request
+7. **Security**: One refresh token per user (logging in invalidates previous refresh token)
 
 Save this file and use it as a reference for testing your User Management API!

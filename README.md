@@ -7,8 +7,11 @@ tokens with PostgreSQL database and Docker support.
 
 - **User Registration & Authentication** - Secure user account creation and login
 - **JWT Token-based Security** - Stateless authentication using JSON Web Tokens
+- **Refresh Token Support** - Automatic token renewal with secure refresh tokens (7-day expiry)
+- **User Profile Management** - Get and update user profiles with username, email, full name, bio, and image URL
 - **Role-based Access Control (RBAC)** - Admin and User roles with different permissions
 - **Auto Role Assignment** - First user gets ADMIN role, subsequent users get USER role
+- **Secure Logout** - Token invalidation for proper session management
 - **Comprehensive Logging** - Detailed logging throughout the application
 - **API Documentation** - Interactive Swagger/OpenAPI documentation
 - **PostgreSQL Database** - Production-ready database with Docker support
@@ -187,8 +190,46 @@ Content-Type: application/json
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "refresh-token-value"
 }
+```
+
+#### Refresh Token
+
+```http
+POST /api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "refresh-token-value"
+}
+```
+
+**Response:**
+
+```json
+{
+  "token": "new-jwt-token-value",
+  "refreshToken": "new-refresh-token-value"
+}
+```
+
+#### Logout
+
+```http
+POST /api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Response:**
+
+```json
+"Logged out successfully"
 ```
 
 ### Admin Endpoints (Requires ADMIN role)
@@ -207,6 +248,41 @@ POST /api/admin/test
 Authorization: Bearer <jwt-token>
 ```
 
+### Profile Endpoints
+
+#### Get User Profile
+
+```http
+GET /api/profile
+Authorization: Bearer <jwt-token>
+```
+
+**Response:**
+
+```json
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "fullName": "John Doe",
+  "bio": "Software developer",
+  "imageUrl": "https://example.com/image.jpg"
+}
+```
+
+#### Update User Profile
+
+```http
+PUT /api/profile
+Content-Type: application/json
+Authorization: Bearer <jwt-token>
+
+{
+  "email": "john2@example.com",
+  "fullName": "John Doe Updated",
+  "bio": "Software developer and architect"
+}
+```
+
 ### Health & Monitoring
 
 ```http
@@ -219,11 +295,28 @@ GET /actuator/metrics
 
 ### JWT Token Usage
 
-After successful login, include the JWT token in the Authorization header:
+The application uses a dual-token system for enhanced security:
 
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+#### Access Tokens
+
+- **Lifetime**: 15 minutes
+- **Usage**: Include in Authorization header for API requests
+- **Format**: `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+#### Refresh Tokens
+
+- **Lifetime**: 7 days
+- **Purpose**: Generate new access tokens when they expire
+- **Storage**: Securely stored in database, one per user
+- **Rotation**: New refresh token issued on each login (invalidates previous)
+
+### Token Flow
+
+1. **Login**: Receive both access token and refresh token
+2. **API Requests**: Use access token in Authorization header
+3. **Token Expiry**: When access token expires (15min), use refresh token
+4. **Refresh**: Send refresh token to `/api/auth/refresh` for new access token
+5. **Logout**: Invalidate refresh token via `/api/auth/logout`
 
 ### Roles
 
@@ -342,7 +435,7 @@ curl -X POST http://localhost:8082/api/auth/register \
   -d '{"username": "admin", "password": "admin123"}'
 ```
 
-#### 2. Login to get JWT token
+#### 2. Login to get JWT token and refresh token
 
 ```bash
 curl -X POST http://localhost:8082/api/auth/login \
@@ -350,11 +443,36 @@ curl -X POST http://localhost:8082/api/auth/login \
   -d '{"username": "admin", "password": "admin123"}'
 ```
 
+**Response includes both tokens:**
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
 #### 3. Use JWT token for protected endpoints
 
 ```bash
 curl -X POST http://localhost:8082/api/admin/test \
   -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+#### 4. Refresh access token when expired
+
+```bash
+curl -X POST http://localhost:8082/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
+```
+
+#### 5. Logout to invalidate refresh token
+
+```bash
+curl -X POST http://localhost:8082/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
 ```
 
 ### Using Swagger UI
@@ -384,19 +502,24 @@ src/
 │   │   ├── dto/
 │   │   │   ├── LoginRequest.java
 │   │   │   ├── LoginResponse.java
-│   │   │   └── RegisterRequest.java
+│   │   │   ├── RegisterRequest.java
+│   │   │   ├── RefreshTokenRequest.java    # Refresh token request DTO
+│   │   │   └── RefreshTokenResponse.java   # Refresh token response DTO
 │   │   ├── entity/
 │   │   │   ├── Role.java                   # Role entity
-│   │   │   └── User.java                   # User entity
+│   │   │   ├── User.java                   # User entity
+│   │   │   └── RefreshToken.java           # Refresh token entity
 │   │   ├── repository/
 │   │   │   ├── RoleRepository.java
-│   │   │   └── UserRepository.java
+│   │   │   ├── UserRepository.java
+│   │   │   └── RefreshTokenRepository.java # Refresh token repository
 │   │   ├── security/
 │   │   │   ├── JwtAuthFilter.java          # JWT authentication filter
 │   │   │   └── JwtUtil.java                # JWT utility methods
 │   │   ├── service/
 │   │   │   ├── CustomUserDetailsService.java
-│   │   │   └── UserService.java
+│   │   │   ├── UserService.java
+│   │   │   └── RefreshTokenService.java    # Refresh token service
 │   │   ├── RoleSeeder.java                 # Database seeding
 │   │   └── UserManagementApplication.java
 │   └── resources/
@@ -409,39 +532,6 @@ src/
 ├── Dockerfile                             # Multi-stage Docker build
 └── api-test-commands.md                   # API testing examples
 ```
-
-## 🚧 Future Enhancements
-
-- [ ] Password reset functionality
-- [ ] User profile management
-- [ ] Email verification
-- [ ] OAuth2 integration (Google, GitHub)
-- [ ] Rate limiting and request throttling
-- [ ] Audit logging
-- [ ] User permissions beyond roles
-- [ ] File upload/profile pictures
-- [ ] Redis for session management
-- [ ] Kubernetes deployment manifests
-- [ ] CI/CD pipeline integration
-
-## 🔍 Monitoring & Observability
-
-### Health Checks
-
-- **Application Health**: `/actuator/health`
-- **Database Health**: Included in health endpoint
-- **Docker Health**: Built-in container health checks
-
-### Logging
-
-- **Console Logging**: Structured JSON format
-- **File Logging**: (Docker only) `/app/logs/usermanagement.log`
-- **Log Levels**: Configurable per package
-- **Request Tracing**: Detailed security and business logic logging
-
-### Metrics
-
-Basic Spring Boot Actuator metrics available at `/actuator/metrics`
 
 ## 🚀 Deployment
 
@@ -479,6 +569,24 @@ JWT_SECRET=your-very-secure-jwt-secret
 - Update documentation for API changes
 - Test with both local and Docker setups
 
+## 📚 Additional Resources
+
+### Spring Boot Documentation
+
+- [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
+- [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/3.5.3/maven-plugin)
+- [Spring Web](https://docs.spring.io/spring-boot/3.5.3/reference/web/servlet.html)
+- [Spring Security](https://docs.spring.io/spring-boot/3.5.3/reference/web/spring-security.html)
+- [Spring Data JPA](https://docs.spring.io/spring-boot/3.5.3/reference/data/sql.html#data.sql.jpa-and-spring-data)
+
+### Helpful Guides
+
+- [Building a RESTful Web Service](https://spring.io/guides/gs/rest-service/)
+- [Building REST services with Spring](https://spring.io/guides/tutorials/rest/)
+- [Securing a Web Application](https://spring.io/guides/gs/securing-web/)
+- [Spring Boot and OAuth2](https://spring.io/guides/tutorials/spring-boot-oauth2/)
+- [Accessing Data with JPA](https://spring.io/guides/gs/accessing-data-jpa/)
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -512,4 +620,36 @@ If you have any questions or need help:
 - [ ] Test admin endpoints
 - [ ] Explore API documentation
 
----
+## Future Enhancements
+
+- [ ] Password reset functionality
+- [ ] Email verification
+- [ ] OAuth2 integration (Google, GitHub)
+- [ ] Rate limiting and request throttling
+- [ ] Audit logging
+- [ ] User permissions beyond roles
+- [ ] File upload/profile pictures
+- [ ] Redis for session management
+- [ ] Kubernetes deployment manifests
+- [ ] CI/CD pipeline integration
+- [ ] Token blacklisting for immediate revocation
+- [ ] Multi-factor authentication (MFA)
+
+## Monitoring & Observability
+
+### Health Checks
+
+- **Application Health**: `/actuator/health`
+- **Database Health**: Included in health endpoint
+- **Docker Health**: Built-in container health checks
+
+### Logging
+
+- **Console Logging**: Structured JSON format
+- **File Logging**: (Docker only) `/app/logs/usermanagement.log`
+- **Log Levels**: Configurable per package
+- **Request Tracing**: Detailed security and business logic logging
+
+### Metrics
+
+Basic Spring Boot Actuator metrics available at `/actuator/metrics`

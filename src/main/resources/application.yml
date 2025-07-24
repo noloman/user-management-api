@@ -50,3 +50,22 @@ springdoc:
     defaultModelExpandDepth: 2
   show-actuator: false
   writer-with-default-pretty-printer: true
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-change-in-production-and-make-it-longer-than-32-chars}
+  access-token:
+    expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION:900000} # 15 minutes
+  refresh-token:
+    expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days
+
+# Application-specific configuration
+app:
+  roles:
+    admin: ${APP_ADMIN_ROLE:ADMIN}
+    user: ${APP_USER_ROLE:USER}
+  security:
+    # First user gets admin role automatically
+    first-user-admin: ${APP_FIRST_USER_ADMIN:true}
+    # Note: Spring Security @PreAuthorize expressions use hardcoded 'ADMIN' role names
+    # The database role names above can be different, but security annotations expect 'ADMIN'

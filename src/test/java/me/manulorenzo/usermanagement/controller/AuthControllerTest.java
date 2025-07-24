@@ -3,7 +3,10 @@ package me.manulorenzo.usermanagement.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.manulorenzo.usermanagement.dto.LoginRequest;
 import me.manulorenzo.usermanagement.dto.RegisterRequest;
+import me.manulorenzo.usermanagement.entity.RefreshToken;
+import me.manulorenzo.usermanagement.entity.User;
 import me.manulorenzo.usermanagement.security.JwtUtil;
+import me.manulorenzo.usermanagement.service.RefreshTokenService;
 import me.manulorenzo.usermanagement.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,11 +19,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -42,6 +46,12 @@ class AuthControllerTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private UserDetailsService userDetailsService;
 
     @InjectMocks
     private AuthController authController;
@@ -84,16 +94,26 @@ class AuthControllerTest {
         request.setUsername("alice");
         request.setPassword("secret");
 
-        UserDetails userDetails = new User("alice", "secret", List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User("alice", "secret", List.of(new SimpleGrantedAuthority("ROLE_USER")));
         Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+        User testUser = new User();
+        testUser.setUsername("alice");
+
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken("refresh-token-uuid");
+        refreshToken.setUser(testUser);
+        refreshToken.setExpiryDate(Instant.now().plusSeconds(86400));
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
         when(jwtUtil.generateToken(userDetails)).thenReturn("jwt-token");
+        when(refreshTokenService.createRefreshToken("alice")).thenReturn(refreshToken);
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token"));
+                .andExpect(jsonPath("$.accessToken").value("jwt-token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token-uuid"));
     }
 }
