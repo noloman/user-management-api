@@ -1,6 +1,8 @@
 spring:
   application:
     name: UserManagement
+  # Local development configuration - requires Docker database running
+  # Use: ./docker-scripts/db-only.sh to start PostgreSQL in Docker
   datasource:
     url: jdbc:postgresql://localhost:5432/usermanagement_dev
     username: userapp
@@ -9,28 +11,24 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # or 'validate'/'none' in prod, 'create-drop' for first-time setup ONLY
+      ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
+    show-sql: true  # Verbose logging for development
     properties:
       hibernate:
-        format_sql: true
+        format_sql: true  # Pretty print SQL for debugging
 
+# Local development server configuration
 server:
-  port: 8081
+  port: 8081  # Different from Docker (8082) to avoid conflicts
 
+# Development logging configuration
 logging:
   level:
     root: INFO
     me.manulorenzo.usermanagement: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
-
-# Optionally comment/remove H2 console/connection
-# h2:
-#  console:
-#    enabled: false
-
 
 # OpenAPI/Swagger configuration
 springdoc:

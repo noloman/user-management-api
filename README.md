@@ -37,20 +37,23 @@ tokens with PostgreSQL database and Docker support.
 
 ## 📋 Prerequisites
 
-### For Local Development:
+### Required (for Docker setup):
+
+- **Docker Desktop** or Docker Engine
+- **Docker Compose**
+
+### Optional (for local development only):
 - Java 17 or higher
 - Maven 3.6 or higher
-- PostgreSQL 12+ (or use Docker for database)
 - IDE (IntelliJ IDEA, VS Code, or Eclipse)
 
-### For Docker Deployment:
-
-- Docker Desktop or Docker Engine
-- Docker Compose
+**Note**: PostgreSQL is not required locally - it runs in Docker containers.
 
 ## 🏃‍♂️ Getting Started
 
 ### Option 1: Full Docker Setup (Recommended)
+
+This is the easiest way to get everything running with no local dependencies.
 
 ```bash
 # Clone the repository
@@ -72,11 +75,13 @@ The application will be available at:
 
 ### Option 2: Local Development with Docker Database
 
+For development with hot reload while keeping the database in Docker:
+
 ```bash
 # Start only PostgreSQL with Docker
 ./docker-scripts/db-only.sh
 
-# Run the Spring Boot app locally
+# Run the Spring Boot app locally (requires Java 17+ and Maven)
 mvn spring-boot:run
 ```
 
@@ -85,30 +90,69 @@ The application will be available at:
 - **Application**: http://localhost:8081
 - **Swagger UI**: http://localhost:8081/swagger-ui.html
 
-### Option 3: Traditional Local Setup
+**Note**: This option requires Java 17+ and Maven locally, but is useful for development with Spring Boot DevTools hot
+reload.
+
+### Hot Reload Development
+
+For the best development experience with automatic restarts:
 
 ```bash
-# Install and start PostgreSQL locally
-# Create database and user (see Database Setup section)
+# Start PostgreSQL database in Docker
+./docker-scripts/db-only.sh
 
-# Run the application
+# Run app locally with Spring Boot DevTools (in another terminal)
 mvn spring-boot:run
 ```
 
+**Benefits of this approach:**
+
+- Fast application restarts on code changes
+- Live reload of static resources
+- Direct database access for debugging
+- No local PostgreSQL installation required
+- Database persists between app restarts
+
+**Alternative**: Use full Docker setup and rebuild container for changes:
+
+```bash
+# Make code changes, then rebuild and restart
+docker-compose up --build -d app
+```
+
+### ~~Option 3: Traditional Local Setup~~
+
+**Not recommended** - Requires manual PostgreSQL installation and configuration. Use Docker options above instead.
+
 ## 🗄️ Database Setup
 
-### Docker (Recommended)
+### Docker Setup (Default)
 
-The Docker setup automatically configures PostgreSQL with:
+The Docker setup automatically handles PostgreSQL configuration - no manual setup required!
 
+**Automatic Configuration:**
 - **Database**: `usermanagement_dev`
 - **Username**: `userapp`
 - **Password**: `userapp123`
-- **Port**: `5432`
+- **Port**: `5432` (mapped to host)
 
-### Manual PostgreSQL Setup
+**Database Operations:**
 
-If installing PostgreSQL manually:
+```bash
+# View database logs
+docker-compose logs postgres
+
+# Connect to database (requires psql client)
+docker-compose exec postgres psql -U userapp -d usermanagement_dev
+
+# Reset database (removes all data)
+docker-compose down -v
+docker-compose up -d postgres
+```
+
+### Manual PostgreSQL Setup (Not Recommended)
+
+Only needed if you want to run PostgreSQL outside Docker:
 
 ```sql
 -- Connect to PostgreSQL as superuser
@@ -116,6 +160,8 @@ CREATE DATABASE usermanagement_dev;
 CREATE USER userapp WITH PASSWORD 'userapp123';
 GRANT ALL PRIVILEGES ON DATABASE usermanagement_dev TO userapp;
 ```
+
+**Note**: Manual setup requires PostgreSQL 12+ installation and configuration.
 
 ## 🐳 Docker Commands
 
@@ -405,24 +451,6 @@ The application automatically seeds initial roles:
 
 This is handled by the `RoleSeeder` component on application startup.
 
-### Hot Reload Development
-
-For the best development experience:
-
-```bash
-# Start database only
-./docker-scripts/db-only.sh
-
-# Run app with Spring Boot DevTools
-mvn spring-boot:run
-```
-
-This allows:
-
-- Fast application restarts
-- Live reload of static resources
-- Direct database access for debugging
-
 ## 📖 API Testing
 
 ### Using cURL (Docker setup - port 8082)
@@ -611,14 +639,18 @@ If you have any questions or need help:
 
 ## 🎯 Quick Start Checklist
 
-- [ ] Clone repository
-- [ ] Install Docker Desktop
-- [ ] Run `./docker-scripts/start.sh`
-- [ ] Open http://localhost:8082/swagger-ui.html
-- [ ] Register a user (becomes admin)
-- [ ] Login to get JWT token
-- [ ] Test admin endpoints
-- [ ] Explore API documentation
+- [ ] **Install Docker Desktop** (only requirement)
+- [ ] Clone repository: `git clone <repository-url>`
+- [ ] Navigate to project: `cd UserManagement`
+- [ ] Make scripts executable: `chmod +x docker-scripts/*.sh`
+- [ ] **Start everything**: `./docker-scripts/start.sh`
+- [ ] **Open Swagger UI**: http://localhost:8082/swagger-ui.html
+- [ ] **Register first user** (becomes admin automatically)
+- [ ] **Login to get JWT tokens**
+- [ ] **Test API endpoints**
+- [ ] **Explore interactive documentation**
+
+**That's it!** No local Java, Maven, or PostgreSQL installation required.
 
 ## Future Enhancements
 

@@ -2,11 +2,19 @@
 
 This file contains cURL commands to test all endpoints in the User Management application.
 
+**Note:** We follow a Docker-first approach for development and testing. Ensure Docker is installed and running before
+proceeding.
+
+**Prerequisites**: Start the application with Docker using `./docker-scripts/start.sh` before running these commands.
+
 ## Base Configuration
 
 ```bash
-# Set base URL (adjust port if needed)
-BASE_URL="http://localhost:8081"
+# Docker setup (recommended) - port 8082
+BASE_URL="http://localhost:8082"
+
+# Local development with Docker database - port 8081
+# BASE_URL="http://localhost:8081"
 ```
 
 ## 1. Authentication Endpoints
@@ -352,7 +360,7 @@ Here's a complete workflow to test the entire application:
 ```bash
 #!/bin/bash
 
-BASE_URL="http://localhost:8081"
+BASE_URL="http://localhost:8082"
 
 echo "=== 1. Registering Admin User ==="
 ADMIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/auth/register" \
@@ -422,7 +430,7 @@ To import into Postman, create a collection with these requests:
 
 ### Environment Variables (Create in Postman)
 
-- `baseUrl`: `http://localhost:8081`
+- `baseUrl`: `http://localhost:8082`
 - `adminToken`: (set after admin login)
 - `userToken`: (set after user login)
 
@@ -453,7 +461,7 @@ To import into Postman, create a collection with these requests:
 
 ## Notes:
 
-1. **Port**: Adjust the port from 8081 to 8080 if needed
+1. **Port**: Adjust the port from 8082 to 8081 if needed for local development without Docker
 2. **JWT Tokens**:
     - **Access Token**: Expires in 15 minutes, used for API authorization
     - **Refresh Token**: Expires in 7 days, used to get new access tokens
