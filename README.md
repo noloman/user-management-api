@@ -366,14 +366,52 @@ The application uses a dual-token system for enhanced security:
 
 ### Roles
 
-- **ADMIN**: Full access to all endpoints including user management
-- **USER**: Standard user access (can be extended for future features)
+## User Roles & Permissions
+
+This application uses Role-Based Access Control (RBAC) using the following roles:
+
+### Available Roles
+
+- **ADMIN**: Can access all API endpoints, including admin and role management endpoints
+- **USER**: Access to standard user endpoints (profile etc). Cannot perform admin operations
 
 ### Role Assignment Logic
 
-- **First registered user**: Automatically assigned ADMIN role
-- **Subsequent users**: Automatically assigned USER role
-- **Additional roles**: Can be added by ADMIN users via `/api/admin/addRole`
+- The **first registered user** is assigned the ADMIN role automatically
+- All **subsequent users** are assigned the USER role
+- **Admin users** can assign additional roles to any account using the `/api/admin/addRole` endpoint
+- Users can have multiple roles
+
+### How to Assign a Role (as Admin)
+
+```bash
+curl -X POST "http://localhost:8082/api/admin/addRole?username=jane&roleName=ADMIN" \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+### Example: Adding Additional Roles to a User
+
+After execution, user `jane` will have both USER and ADMIN roles and will be able to use all admin endpoints.
+
+### Checking a User's Roles
+
+Roles are returned in the JWT token's payload (under `roles`) and are also visible as authorities for the authenticated
+user.
+
+#### Example JWT Payload
+
+```json
+{
+  "sub": "jane",
+  "roles": [
+    { "authority": "ROLE_ADMIN" }, 
+    { "authority": "ROLE_USER" }
+  ],
+  ...
+}
+```
+
+- Endpoints that require the ADMIN role are documented accordingly in the API section.
 
 ## 🧪 Testing
 
@@ -493,6 +531,15 @@ curl -X POST http://localhost:8082/api/admin/test \
 curl -X POST http://localhost:8082/api/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
+```
+
+**Response:**
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+}
 ```
 
 #### 5. Logout to invalidate refresh token

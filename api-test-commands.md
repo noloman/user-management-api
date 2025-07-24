@@ -7,6 +7,45 @@ proceeding.
 
 **Prerequisites**: Start the application with Docker using `./docker-scripts/start.sh` before running these commands.
 
+## User Roles & Permissions
+
+This application uses Role-Based Access Control (RBAC) with two roles:
+
+- **ADMIN** - can register, login, profile, and admin endpoints (role management, test, etc)
+- **USER** - can register, login, access their own profile
+
+### Assignment
+
+- **First user registered**: assigned ADMIN role
+- **All subsequent users**: assigned USER role
+- **Admins** can add roles: `/api/admin/addRole` endpoint
+- Users may have both ADMIN and USER roles
+
+### Assigning a Role with curl
+
+```bash
+curl -X POST "http://localhost:8082/api/admin/addRole?username=user1&roleName=ADMIN" \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+### Example JWT roles in token
+
+JWT tokens (see [jwt.io](https://jwt.io/)) contain:
+
+```json
+{
+  "sub": "user1",
+  "roles": [
+    { "authority": "ROLE_USER" },
+    { "authority": "ROLE_ADMIN" }
+  ],
+  ...  
+}
+```
+
+- You must use an ADMIN token for admin-protected endpoints
+- Use refresh token after login for continuous authentication
+
 ## Base Configuration
 
 ```bash
@@ -15,6 +54,155 @@ BASE_URL="http://localhost:8082"
 
 # Local development with Docker database - port 8081
 # BASE_URL="http://localhost:8081"
+```
+
+## OpenAPI v3 Specification
+
+For direct import into API clients, use the OpenAPI v3 specification file at `User Management/openapi.yaml`.
+
+### Authentication Endpoints
+
+#### Register Admin User
+```bash
+curl -X POST "http://localhost:8082/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
+
+#### Register Regular User
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user1", "password": "user123"}'
+```
+
+#### Login Admin
+```bash
+curl -X POST "http://localhost:8082/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
+
+**Expected Response:**
+
+```json
+{
+  "token": "...",
+  "refreshToken": "..."
+}
+```
+
+#### Login User
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user1", "password": "user123"}'
+```
+
+**Expected Response:**
+
+```json
+{
+  "token": "...",
+  "refreshToken": "..."
+}
+```
+
+#### Refresh Access Token
+```bash
+curl -X POST "http://localhost:8082/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
+```
+
+**Expected Response:**
+
+```json
+{
+   "token": "...",
+   "refreshToken": "..."
+}
+```
+
+#### Logout
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/logout" \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
+```
+
+### Profile Endpoints
+
+#### Get Current User Profile
+
+```bash
+curl -X GET "http://localhost:8082/api/profile" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+#### Update User Profile
+
+```bash
+curl -X PUT "http://localhost:8082/api/profile" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -d '{"email": "updated@example.com", "fullName": "Updated Name", "bio": "Updated bio"}'
+```
+
+### Admin Endpoints
+
+#### Test Admin Access
+```bash
+curl -X POST "http://localhost:8082/api/admin/test" \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+#### Add Role to User
+
+```bash
+curl -X POST "http://localhost:8082/api/admin/addRole?username=user1&roleName=USER" \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+### Health & Monitoring
+
+#### Health Check
+
+```bash
+curl -X GET "http://localhost:8082/actuator/health"
+```
+
+#### API Info
+
+```bash
+curl -X GET "http://localhost:8082/actuator/info"
+```
+
+### Error Test Cases
+
+#### Register with Existing Username
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "different123"}'
+```
+
+#### Login with Wrong Password
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "wrongpassword"}'
+```
+
+#### Access Admin Endpoint without Token
+
+```bash
+curl -X POST "http://localhost:8082/api/admin/test"
 ```
 
 ## 1. Authentication Endpoints
@@ -83,6 +271,15 @@ curl -X POST "${BASE_URL}/api/auth/login" \
   }'
 ```
 
+**Response includes both access token (15min) and refresh token (7 days):**
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
 ### Refresh Access Token (When access token expires)
 
 ```bash
@@ -93,11 +290,12 @@ curl -X POST "${BASE_URL}/api/auth/refresh" \
   }'
 ```
 
-**Response returns new access token:**
+**Response returns new access token and refresh token:**
 
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+   "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -424,23 +622,102 @@ echo "Response: $LOGOUT"
 echo -e "\n=== Test Complete ==="
 ```
 
-## 6. Postman Collection Format
+## 6. API Client Import Instructions
 
-To import into Postman, create a collection with these requests:
+### Using the OpenAPI v3 Specification (Recommended)
 
-### Environment Variables (Create in Postman)
+This repository includes a comprehensive OpenAPI v3 specification at `User Management/openapi.yaml` that can be imported
+into any modern API client:
 
-- `baseUrl`: `http://localhost:8082`
-- `adminToken`: (set after admin login)
-- `userToken`: (set after user login)
+#### Bruno Import
 
-### Collection Structure:
+1. **Open Bruno** and click "Import Collection"
+2. **Select "OpenAPI v3"** as the import format
+3. **Choose the file**: `User Management/openapi.yaml`
+4. **Configure environment**: Bruno will automatically create environments for both Docker (8082) and Local (8081)
 
+#### Postman Import
+
+1. **Open Postman** and click "Import"
+2. **Select "File"** and choose `User Management/openapi.yaml`
+3. **Review and Import**: Postman will create a collection with all endpoints
+4. **Set up environment variables**:
+   - `baseUrl`: `http://localhost:8082` (or `http://localhost:8081` for local)
+   - Add `accessToken` and `refreshToken` variables for authentication
+
+#### Insomnia Import
+
+1. **Open Insomnia** and click "Import/Export"
+2. **Select "Import Data"** → "From File"
+3. **Choose**: `User Management/openapi.yaml`
+4. **Set up environment**: Create environment variables for `baseUrl`, `accessToken`, `refreshToken`
+
+### What's Included in the OpenAPI Spec
+
+✅ **Complete API Coverage**: All endpoints with detailed descriptions
+✅ **Authentication Schemas**: Bearer token configuration
+✅ **Request/Response Examples**: Real sample data for all endpoints  
+✅ **Multiple Environments**: Docker (8082) and Local (8081) servers
+✅ **Comprehensive Schemas**: All DTOs with validation rules
+✅ **Error Responses**: Detailed error handling documentation
+✅ **Security Definitions**: JWT Bearer token setup
+
+### Manual Bruno Import (Alternative)
+1. **Copy the Bruno-friendly cURL commands** from the section above (with full URLs)
+2. **In Bruno**:
+   - Click "Import" → "cURL"
+   - Paste the cURL command
+   - Bruno will automatically parse the request
+3. **Set up environment variables** in Bruno:
+   - Go to Environments
+   - Create a new environment with:
+      - `baseUrl`: `http://localhost:8082`
+      - `accessToken`: (set after login)
+      - `refreshToken`: (set after login)
+4. **Update imported requests** to use variables:
+   - Change `http://localhost:8082` to `{{baseUrl}}`
+   - Change `YOUR_JWT_TOKEN_HERE` to `{{accessToken}}`
+   - Change `YOUR_REFRESH_TOKEN_HERE` to `{{refreshToken}}`
+
+### Postman Import
+
+1. **Copy any cURL command** (Bruno-friendly versions work best)
+2. **In Postman**:
+   - Click "Import" → "Raw text"
+   - Paste the cURL command
+   - Click "Continue" → "Import"
+3. **Environment Variables** (Create in Postman):
+   - `baseUrl`: `http://localhost:8082`
+   - `accessToken`: (set after login)
+   - `refreshToken`: (set after login)
+
+### Insomnia Import
+
+1. **Copy any Bruno-friendly cURL command**
+2. **In Insomnia**:
+   - Click "Import/Export" → "Import Data" → "From Clipboard"
+   - Or use "Create" → "HTTP Request" and paste the cURL command
+3. **Environment Setup**:
+   - Create environment with `baseUrl`, `accessToken`, `refreshToken`
+   - Use `{{ _.baseUrl }}` syntax for variables
+
+### Testing Workflow
+
+1. **Start the application**: `./docker-scripts/start.sh`
+2. **Register admin user** (gets ADMIN role automatically)
+3. **Login admin** → copy `token` to `accessToken` and `adminToken` variables
+4. **Register regular user**
+5. **Login user** → copy `token` to `accessToken`, `refreshToken` to `refreshToken`
+6. **Test protected endpoints** using the stored tokens
+7. **Try admin operations** with admin token
+8. **Test profile management** with user token
+
+### Collection Structure for API Clients:
 ```
 📁 User Management API
 ├── 📁 Authentication
 │   ├── POST Register Admin
-│   ├── POST Register User
+│   ├── POST Register User  
 │   ├── POST Login Admin
 │   ├── POST Login User
 │   ├── POST Refresh Token
@@ -458,6 +735,11 @@ To import into Postman, create a collection with these requests:
     ├── POST Login Wrong Password
     └── POST Unauthorized Access
 ```
+
+### Quick Import Tip for Bruno Users:
+
+Use the **Bruno-friendly cURL commands** at the top of this document for easiest import. They have full URLs instead of
+shell variables like `${BASE_URL}`.
 
 ## Notes:
 
