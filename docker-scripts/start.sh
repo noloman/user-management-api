@@ -7,9 +7,10 @@ echo ""
 # Create necessary directories
 mkdir -p logs
 
-# Start the services
-echo "📦 Starting PostgreSQL database and Spring Boot application..."
-docker-compose up -d
+# Always REBUILD the app image for latest code
+# This avoids stale code in development!
+echo "📦 Building and starting PostgreSQL database and Spring Boot application..."
+docker-compose up --build -d
 
 echo ""
 echo "✅ Services are starting..."
@@ -43,7 +44,7 @@ echo "🔧 Helpful Commands:"
 echo "  - View app logs: docker-compose logs -f app"
 echo "  - Restart app: docker-compose restart app"
 echo "  - Rebuild app: docker-compose up --build -d app"
-echo "  - Reset database: docker-compose down -v && docker-compose up -d"
+echo "  - Reset database: docker-compose down -v && docker-compose up --build -d"
 
 echo ""
 echo "⏳ Waiting for services to be ready..."
