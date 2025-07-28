@@ -12,6 +12,9 @@ import me.manulorenzo.usermanagement.dto.LoginResponse;
 import me.manulorenzo.usermanagement.dto.RegisterRequest;
 import me.manulorenzo.usermanagement.dto.RefreshTokenRequest;
 import me.manulorenzo.usermanagement.dto.RefreshTokenResponse;
+import me.manulorenzo.usermanagement.dto.VerifyEmailRequest;
+import me.manulorenzo.usermanagement.dto.ForgotPasswordRequest;
+import me.manulorenzo.usermanagement.dto.ResetPasswordRequest;
 import me.manulorenzo.usermanagement.entity.RefreshToken;
 import me.manulorenzo.usermanagement.service.RefreshTokenService;
 import me.manulorenzo.usermanagement.service.UserService;
@@ -26,6 +29,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Authentication", description = "User registration and login endpoints")
@@ -60,18 +64,13 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
         logger.info("Registration request received for username: {}", request.getUsername());
-
         try {
             userService.register(request);
-            logger.info("User {} registered successfully", request.getUsername());
-            return ResponseEntity.ok("User registered");
-        } catch (RuntimeException e) {
-            logger.error("Registration failed for username {}: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.ok("User registered successfully. Please check your email to verify your account.");
         } catch (Exception e) {
-            logger.error("Unexpected error during registration for username {}", request.getUsername(), e);
+            logger.error("Registration failed for username: {}", request.getUsername(), e);
             return ResponseEntity.badRequest().body("Registration failed: " + e.getMessage());
         }
     }
@@ -164,6 +163,90 @@ public class AuthController {
         } catch (Exception e) {
             logger.error("Logout failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body("Logout failed: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Verify email",
+            description = "Verifies the user's email"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Email verified successfully"),
+            @ApiResponse(responseCode = "400", description = "Email verification failed",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/verify-email")
+    public ResponseEntity<String> verifyEmail(@RequestBody VerifyEmailRequest request) {
+        logger.info("Email verification request received for: {}", request.getEmail());
+        try {
+            String result = userService.verifyEmail(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Email verification failed for: {}", request.getEmail(), e);
+            return ResponseEntity.badRequest().body("Email verification failed: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Resend verification email",
+            description = "Resends the verification email"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Verification email resent successfully"),
+            @ApiResponse(responseCode = "400", description = "Failed to resend verification email",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerificationEmail(@RequestParam String email) {
+        logger.info("Resend verification email request for: {}", email);
+        try {
+            String result = userService.resendVerificationEmail(email);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Failed to resend verification email for: {}", email, e);
+            return ResponseEntity.badRequest().body("Failed to resend verification email: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Forgot password",
+            description = "Sends a password reset link to the user's email"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password reset link sent successfully"),
+            @ApiResponse(responseCode = "400", description = "Failed to send password reset link",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        logger.info("Forgot password request received for: {}", request.getEmail());
+        try {
+            String result = userService.forgotPassword(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Forgot password failed for: {}", request.getEmail(), e);
+            return ResponseEntity.badRequest().body("Forgot password failed: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Reset password",
+            description = "Resets the user's password"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password reset successfully"),
+            @ApiResponse(responseCode = "400", description = "Failed to reset password",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        logger.info("Password reset request received for: {}", request.getEmail());
+        try {
+            String result = userService.resetPassword(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Password reset failed for: {}", request.getEmail(), e);
+            return ResponseEntity.badRequest().body("Password reset failed: " + e.getMessage());
         }
     }
 }

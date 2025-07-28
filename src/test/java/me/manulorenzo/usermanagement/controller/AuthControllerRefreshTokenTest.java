@@ -114,7 +114,7 @@ class AuthControllerRefreshTokenTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.token").value("access-token"))
                 .andExpect(jsonPath("$.refreshToken").value("test-refresh-token-uuid"));
 
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));

@@ -3,15 +3,20 @@ package me.manulorenzo.usermanagement.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Schema(description = "User registration request")
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Request object for user registration")
 public class RegisterRequest {
 
-    @Schema(description = "Username for the new account", example = "john_doe", required = true)
+    @Schema(description = "Desired username", example = "johndoe")
     private String username;
 
-    @Schema(description = "Password for the new account", example = "mySecurePassword123", required = true)
+    @Schema(description = "Email address", example = "john@example.com")
+    private String email;
+
+    @Schema(description = "Password", example = "securePassword123")
     private String password;
 }

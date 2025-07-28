@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -40,4 +41,28 @@ public class User {
     @Setter
     @Getter
     private String imageUrl;
+
+    @Setter
+    @Getter
+    private boolean enabled = false; // Account disabled until email verified
+
+    @Setter
+    @Getter
+    private boolean emailVerified = false;
+
+    @Setter
+    @Getter
+    private String verificationToken;
+
+    @Setter
+    @Getter
+    private Instant verificationTokenExpiry;
+
+    @Setter
+    @Getter
+    private String passwordResetToken;
+
+    @Setter
+    @Getter
+    private Instant passwordResetTokenExpiry;
 }

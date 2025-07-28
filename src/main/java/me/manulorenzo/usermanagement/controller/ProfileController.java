@@ -9,9 +9,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.manulorenzo.usermanagement.dto.UserProfile;
 import me.manulorenzo.usermanagement.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +36,8 @@ public class ProfileController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Profile fetched successfully",
                     content = @Content(schema = @Schema(implementation = UserProfile.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content),
             @ApiResponse(responseCode = "401", description = "Access token missing or invalid",
                     content = @Content)
     })
@@ -49,7 +54,9 @@ public class ProfileController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Profile updated successfully",
                     content = @Content(schema = @Schema(implementation = UserProfile.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid data supplied",
+            @ApiResponse(responseCode = "400", description = "Invalid data supplied or email/username already exists",
+                    content = @Content),
+            @ApiResponse(responseCode = "404", description = "User not found",
                     content = @Content),
             @ApiResponse(responseCode = "401", description = "Access token missing or invalid",
                     content = @Content)
@@ -62,5 +69,20 @@ public class ProfileController {
         String username = authentication.getName();
         return ResponseEntity.ok(userService.updateUserProfile(username, dto));
     }
-}
 
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<String> handleUsernameNotFound(UsernameNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException e) {
+        String message = e.getMessage();
+        if (message != null && (message.contains("already exists") ||
+                message.contains("Email already exists") ||
+                message.contains("Username already exists"))) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(message);
+    }
+}

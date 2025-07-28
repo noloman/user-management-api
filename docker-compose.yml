@@ -30,12 +30,22 @@ services:
     container_name: usermanagement-app
     restart: unless-stopped
     ports:
-      - "8082:8081"
+      - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      # Database configuration
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/usermanagement_dev
       - SPRING_DATASOURCE_USERNAME=userapp
       - SPRING_DATASOURCE_PASSWORD=userapp123
+      # Development settings
+      - SHOW_SQL=false
+      - FORMAT_SQL=false
+      - LOG_LEVEL_APP=DEBUG
+      - LOG_LEVEL_SQL=WARN
+      # Email configuration (development mode)
+      - MAIL_HOST=localhost
+      - MAIL_PORT=1025
+      - APP_EMAIL_FROM=noreply@usermanagement.com
+      - APP_BASE_URL=http://localhost:8082
     depends_on:
       postgres:
         condition: service_healthy

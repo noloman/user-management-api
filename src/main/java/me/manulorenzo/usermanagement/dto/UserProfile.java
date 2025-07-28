@@ -2,27 +2,22 @@ package me.manulorenzo.usermanagement.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Schema(description = "User profile object containing public and editable fields", example = "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"fullName\": \"John Doe\",\n  \"bio\": \"Software developer\",\n  \"imageUrl\": \"https://example.com/image.jpg\"\n}")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserProfile {
-    @Getter
-    @Setter
+    @Schema(description = "Username", example = "john_doe")
     private String username;
-    @Getter
-    @Setter
+    @Schema(description = "Email address", example = "john@example.com")
     private String email;
-    @Getter
-    @Setter
+    @Schema(description = "Full name", example = "John Doe")
     private String fullName;
-    @Getter
-    @Setter
+    @Schema(description = "Bio/description", example = "Software developer")
     private String bio;
-    @Getter
-    @Setter
+    @Schema(description = "Profile image URL", example = "https://example.com/image.jpg")
     private String imageUrl;
 }

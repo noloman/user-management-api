@@ -2,7 +2,46 @@ openapi: 3.0.3
 info:
   title: User Management API
   version: "1.0.0"
-  description: "User management system with JWT authentication, PostgreSQL, RBAC (ADMIN/USER), Docker-first."
+  description: |
+    A comprehensive user management system with JWT authentication, PostgreSQL, RBAC (ADMIN/USER), and Docker-first deployment.
+    
+    ## Key Features
+    - **Email Verification Required**: All new accounts must verify their email before login
+    - **Password Reset**: Secure password reset via email tokens  
+    - **JWT + Refresh Tokens**: Dual-token system (15min access, 7-day refresh)
+    - **Role-Based Access Control**: ADMIN and USER roles with different permissions
+    - **Profile Management**: Full user profile CRUD operations
+    - **Docker-First**: Optimized for containerized development and deployment
+    
+    ## Authentication Flow
+    1. **Register** → Account created (disabled) + verification email sent
+    2. **Verify Email** → Account activated, can now login
+    3. **Login** → Receive access token (15min) + refresh token (7 days)  
+    4. **Use Access Token** → For all authenticated API calls
+    5. **Refresh Token** → Get new access token when expired
+    6. **Logout** → Invalidate refresh token
+    
+    ## Development Testing
+    Without SMTP server configured, verification and reset tokens are logged to console:
+    ```
+    WARN EmailService - Development - Verification token for user@example.com: abc123def456
+    WARN EmailService - Development - Password reset token for user@example.com: xyz789abc123  
+    ```
+    Use these tokens with `/api/auth/verify-email` and `/api/auth/reset-password` endpoints.
+    
+    ## Quick Start (Docker)
+    1. Run `./docker-scripts/start.sh`
+    2. Open http://localhost:8082/swagger-ui.html
+    3. Register user at `/api/auth/register` 
+    4. Check console logs for verification token
+    5. Verify email at `/api/auth/verify-email`
+    6. Login at `/api/auth/login` to get tokens
+    7. Use access token in "Authorize" button above
+    
+    ## Production Setup
+    Configure SMTP settings via environment variables:
+    - `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+    - `APP_EMAIL_FROM`, `APP_BASE_URL`
 
 servers:
   - url: http://localhost:8082
@@ -20,11 +59,14 @@ components:
   schemas:
     RegisterRequest:
       type: object
-      required: [username, password]
+      required: [ username, email, password ]
       properties:
         username:
           type: string
           example: admin
+        email:
+          type: string
+          example: admin@example.com
         password:
           type: string
           example: admin123
@@ -61,12 +103,9 @@ components:
     RefreshTokenResponse:
       type: object
       properties:
-        token:
+        accessToken:
           type: string
           example: eyJhbGciOiJIUzI1NiJ9...
-        refreshToken:
-          type: string
-          example: 550e8400-e29b-41d4-a716-446655440000
 
     UserProfile:
       type: object
@@ -100,11 +139,45 @@ components:
             enum: [ROLE_ADMIN, ROLE_USER]
           example: [ROLE_USER, ROLE_ADMIN]
 
+    VerifyEmailRequest:
+      type: object
+      required: [ email, token ]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        token:
+          type: string
+          example: abc123def456
+
+    ForgotPasswordRequest:
+      type: object
+      required: [ email ]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+
+    ResetPasswordRequest:
+      type: object
+      required: [ email, token, newPassword ]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        token:
+          type: string
+          example: abc123def456
+        newPassword:
+          type: string
+          example: newpassword123
+
 paths:
   /api/auth/register:
     post:
       tags: [Authentication]
       summary: Register new user (first user gets ADMIN, others get USER)
+      description: Registers a new user account. Account will be disabled until email is verified.
       security: []
       requestBody:
         required: true
@@ -114,15 +187,16 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
             example:
               username: admin
+              email: admin@example.com
               password: admin123
       responses:
         '200':
-          description: User registered successfully
+          description: User registered successfully (verification email sent)
           content:
             application/json:
               schema:
                 type: string
-              example: "User registered"
+              example: "User registered successfully. Please check your email to verify your account."
         '400':
           description: Registration failed
           content:
@@ -184,8 +258,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/RefreshTokenResponse'
               example:
-                token: eyJhbGciOiJIUzI1NiJ9...
-                refreshToken: 550e8400-e29b-41d4-a716-446655440000
+                accessToken: eyJhbGciOiJIUzI1NiJ9...
         '400':
           description: Invalid/expired refresh token
           content:
@@ -222,6 +295,128 @@ paths:
               schema:
                 type: string
               example: "Logout failed: Database error"
+
+  /api/auth/verify-email:
+    post:
+      tags: [ Authentication ]
+      summary: Verify email address
+      description: Verifies the user's email address using the token sent via email.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            example:
+              email: admin@example.com
+              token: abc123def456
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Email verification successful"
+        '400':
+          description: Email verification failed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Invalid verification token"
+
+  /api/auth/resend-verification:
+    post:
+      tags: [ Authentication ]
+      summary: Resend verification email
+      description: Resends the verification email to the user.
+      security: [ ]
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            example: admin@example.com
+      responses:
+        '200':
+          description: Verification email resent successfully
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Verification email sent"
+        '400':
+          description: Failed to resend verification email
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Email not found"
+
+  /api/auth/forgot-password:
+    post:
+      tags: [ Authentication ]
+      summary: Request password reset
+      description: Sends a password reset link to the user's email address.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+            example:
+              email: admin@example.com
+      responses:
+        '200':
+          description: Password reset email sent
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Password reset email sent"
+        '400':
+          description: Failed to send password reset email
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Email not found"
+
+  /api/auth/reset-password:
+    post:
+      tags: [ Authentication ]
+      summary: Reset password
+      description: Resets the user's password using the token sent via email.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            example:
+              email: admin@example.com
+              token: abc123def456
+              newPassword: newpassword123
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Password reset successful"
+        '400':
+          description: Password reset failed
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Invalid or expired reset token"
 
   /api/profile:
     get:
@@ -268,33 +463,9 @@ paths:
                 bio: Updated bio
                 imageUrl: https://example.com/me.jpg
 
-  /api/profile/roles:
-    get:
-      tags: [Profile]
-      summary: Get current user's roles
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: List of roles for the current user
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  roles:
-                    type: array
-                    items:
-                      type: string
-                      enum: [ROLE_ADMIN, ROLE_USER]
-                example:
-                  roles:
-                    - ROLE_ADMIN
-                    - ROLE_USER
-
   /api/admin/addRole:
     post:
-      tags: [Admin Operations]
+      tags: [ Admin Operations ]
       summary: Add role to user
       security:
         - BearerAuth: []
@@ -309,7 +480,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [ADMIN, USER]
+            enum: [ ADMIN, USER ]
       responses:
         '200':
           description: Role added
@@ -325,45 +496,6 @@ paths:
               schema:
                 type: string
               example: "Failed to add role: User not found"
-
-  /api/users/{username}/roles:
-    get:
-      tags: [Admin Operations]
-      summary: Get roles for a specific user (ADMIN only)
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: username
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: List of roles for the user
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  username:
-                    type: string
-                  roles:
-                    type: array
-                    items:
-                      type: string
-                      enum: [ROLE_ADMIN, ROLE_USER]
-                example:
-                  username: jane
-                  roles:
-                    - ROLE_USER
-        '403':
-          description: Requires ADMIN role to access other users' roles
-          content:
-            application/json:
-              schema:
-                type: string
-              example: "Forbidden"
 
   /api/admin/test:
     post:

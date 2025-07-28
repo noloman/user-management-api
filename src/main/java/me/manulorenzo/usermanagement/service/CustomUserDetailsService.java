@@ -44,10 +44,14 @@ public class CustomUserDetailsService implements UserDetailsService {
             UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                     user.getUsername(),
                     user.getPassword(),
+                    user.isEnabled(), // Account enabled (email verified)
+                    true, // Account not expired
+                    true, // Credentials not expired
+                    true, // Account not locked
                     authorities
             );
 
-            logger.info("Successfully loaded user details for: {}", username);
+            logger.info("Successfully loaded user details for: {} (enabled: {})", username, user.isEnabled());
             return userDetails;
 
         } catch (UsernameNotFoundException e) {

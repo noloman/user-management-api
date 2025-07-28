@@ -1,34 +1,65 @@
 spring:
   application:
     name: UserManagement
-  # Local development configuration - requires Docker database running
-  # Use: ./docker-scripts/db-only.sh to start PostgreSQL in Docker
+  
+  # Unified database configuration (works for both Docker and local development)
   datasource:
-    url: jdbc:postgresql://localhost:5432/usermanagement_dev
-    username: userapp
-    password: userapp123
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/usermanagement_dev}
+    username: ${SPRING_DATASOURCE_USERNAME:userapp}
+    password: ${SPRING_DATASOURCE_PASSWORD:userapp123}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
 
   jpa:
     hibernate:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true  # Verbose logging for development
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true  # Pretty print SQL for debugging
+        format_sql: ${FORMAT_SQL:false}
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
-# Local development server configuration
+  # Unified email configuration
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_STARTTLS:false}
+        debug: ${MAIL_DEBUG:false}
+
+# Server configuration
 server:
-  port: 8081  # Different from Docker (8082) to avoid conflicts
+  port: ${SERVER_PORT:8082}
+  servlet:
+    context-path: /
 
-# Development logging configuration
+# Logging configuration
 logging:
   level:
-    root: INFO
-    me.manulorenzo.usermanagement: DEBUG
+    root: ${LOG_LEVEL_ROOT:INFO}
+    me.manulorenzo.usermanagement: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: ${LOG_FILE_PATH:/app/logs/usermanagement.log}
+    max-size: 100MB
+    max-history: 30
 
 # OpenAPI/Swagger configuration
 springdoc:
@@ -49,6 +80,19 @@ springdoc:
   show-actuator: false
   writer-with-default-pretty-printer: true
 
+# Production-ready health monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  info:
+    env:
+      enabled: true
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:default-secret-key-change-in-production-and-make-it-longer-than-32-chars}
@@ -63,7 +107,7 @@ app:
     admin: ${APP_ADMIN_ROLE:ADMIN}
     user: ${APP_USER_ROLE:USER}
   security:
-    # First user gets admin role automatically
     first-user-admin: ${APP_FIRST_USER_ADMIN:true}
-    # Note: Spring Security @PreAuthorize expressions use hardcoded 'ADMIN' role names
-    # The database role names above can be different, but security annotations expect 'ADMIN'
+  email:
+    from: ${APP_EMAIL_FROM:noreply@usermanagement.com}
+  base-url: ${APP_BASE_URL:http://localhost:8082}

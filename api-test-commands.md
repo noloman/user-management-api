@@ -7,6 +7,27 @@ proceeding.
 
 **Prerequisites**: Start the application with Docker using `./docker-scripts/start.sh` before running these commands.
 
+## Email Verification & Password Reset
+
+**Important**: This application now requires email verification for new accounts:
+
+1. **Registration**: Creates account but leaves it disabled
+2. **Email Verification**: User must verify email to activate account
+3. **Login**: Only works after email verification
+4. **Password Reset**: Available for users who forgot their password
+
+### Development Testing
+
+In development mode (without SMTP server), verification and reset tokens are **logged to the console** when emails fail
+to send. Look for log messages like:
+
+```
+WARN  EmailService - Development - Verification token for user@example.com: abc123def456
+WARN  EmailService - Development - Password reset token for user@example.com: xyz789abc123
+```
+
+You can use these tokens in the verification/reset endpoints below.
+
 ## User Roles & Permissions
 
 This application uses Role-Based Access Control (RBAC) with two roles:
@@ -66,7 +87,13 @@ For direct import into API clients, use the OpenAPI v3 specification file at `Us
 ```bash
 curl -X POST "http://localhost:8082/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"username": "admin", "password": "admin123", "email": "admin@example.com"}'
+```
+
+**Expected Response:**
+
+```json
+"User registered successfully. Please check your email to verify your account."
 ```
 
 #### Register Regular User
@@ -74,7 +101,39 @@ curl -X POST "http://localhost:8082/api/auth/register" \
 ```bash
 curl -X POST "http://localhost:8082/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"username": "user1", "password": "user123"}'
+  -d '{"username": "user1", "password": "user123", "email": "user1@example.com"}'
+```
+
+**Expected Response:**
+
+```json
+"User registered successfully. Please check your email to verify your account."
+```
+
+#### Verify Email
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/verify-email" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "token": "YOUR_VERIFICATION_TOKEN"}'
+```
+
+**Expected Response:**
+
+```json
+"Email verification successful"
+```
+
+#### Resend Verification Email
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/resend-verification?email=admin@example.com"
+```
+
+**Expected Response:**
+
+```json
+"Verification email sent"
 ```
 
 #### Login Admin
@@ -121,8 +180,7 @@ curl -X POST "http://localhost:8082/api/auth/refresh" \
 
 ```json
 {
-   "token": "...",
-   "refreshToken": "..."
+   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
@@ -132,6 +190,34 @@ curl -X POST "http://localhost:8082/api/auth/refresh" \
 curl -X POST "http://localhost:8082/api/auth/logout" \
   -H "Content-Type: application/json" \
   -d '{"refreshToken": "YOUR_REFRESH_TOKEN_HERE"}'
+```
+
+#### Request Password Reset
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/forgot-password" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com"}'
+```
+
+**Expected Response:**
+
+```json
+"Password reset email sent"
+```
+
+#### Reset Password
+
+```bash
+curl -X POST "http://localhost:8082/api/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "token": "YOUR_RESET_TOKEN", "newPassword": "newpassword123"}'
+```
+
+**Expected Response:**
+
+```json
+"Password reset successful"
 ```
 
 ### Profile Endpoints
@@ -188,7 +274,7 @@ curl -X GET "http://localhost:8082/actuator/info"
 ```bash
 curl -X POST "http://localhost:8082/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "different123"}'
+  -d '{"username": "admin", "password": "different123", "email": "admin@example.com"}'
 ```
 
 #### Login with Wrong Password
@@ -214,7 +300,8 @@ curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
-    "password": "admin123"
+    "password": "admin123",
+    "email": "admin@example.com"
   }'
 ```
 
@@ -225,7 +312,8 @@ curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "user1",
-    "password": "user123"
+    "password": "user123",
+    "email": "user1@example.com"
   }'
 ```
 
@@ -236,7 +324,8 @@ curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "user2",
-    "password": "user456"
+    "password": "user456",
+    "email": "user2@example.com"
   }'
 ```
 
@@ -290,12 +379,11 @@ curl -X POST "${BASE_URL}/api/auth/refresh" \
   }'
 ```
 
-**Response returns new access token and refresh token:**
+**Response returns new access token:**
 
 ```json
 {
-   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-   "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
@@ -410,7 +498,8 @@ curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
-    "password": "different123"
+    "password": "different123",
+    "email": "admin@example.com"
   }'
 ```
 
@@ -496,7 +585,8 @@ curl -X POST "${BASE_URL}/api/admin/test" \
 curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "password": "password123"
+    "password": "password123",
+    "email": "user@example.com"
   }'
 ```
 
@@ -506,7 +596,8 @@ curl -X POST "${BASE_URL}/api/auth/register" \
 curl -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "testuser"
+    "username": "testuser",
+    "email": "testuser@example.com"
   }'
 ```
 
@@ -553,7 +644,7 @@ curl -X POST "${BASE_URL}/api/admin/addRole?username=user1" \
 
 ## 5. Complete Test Workflow
 
-Here's a complete workflow to test the entire application:
+Here's a complete workflow to test the entire application including email verification:
 
 ```bash
 #!/bin/bash
@@ -563,19 +654,40 @@ BASE_URL="http://localhost:8082"
 echo "=== 1. Registering Admin User ==="
 ADMIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}')
+  -d '{
+    "username": "admin",
+    "password": "admin123",
+    "email": "admin@example.com"
+  }')
 echo "Response: $ADMIN_RESPONSE"
+echo "Note: Check console logs for verification token"
 
-echo -e "\n=== 2. Registering Regular User ==="
+echo -e "\n=== 2. Verify Admin Email (use token from logs) ==="
+echo "Copy verification token from console logs and run:"
+echo "curl -X POST \"${BASE_URL}/api/auth/verify-email\" \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -d '{\"email\": \"admin@example.com\", \"token\": \"COPY_TOKEN_FROM_LOGS\"}'"
+echo ""
+echo "For this example, assuming email is verified..."
+
+echo -e "\n=== 3. Registering Regular User ==="
 USER_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"username": "user1", "password": "user123"}')
+  -d '{
+    "username": "user1",
+    "password": "user123",
+    "email": "user1@example.com"
+  }')
 echo "Response: $USER_RESPONSE"
+echo "Note: Check console logs for verification token"
 
-echo -e "\n=== 3. Admin Login ==="
+echo -e "\n=== 4. Admin Login (assuming email verified) ==="
 ADMIN_LOGIN=$(curl -s -X POST "${BASE_URL}/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}')
+  -d '{
+    "username": "admin",
+    "password": "admin123"
+  }')
 echo "Response: $ADMIN_LOGIN"
 
 # Extract token (requires jq tool)
@@ -583,12 +695,12 @@ if command -v jq &> /dev/null; then
     ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.token')
     echo "Admin Token: $ADMIN_TOKEN"
     
-    echo -e "\n=== 4. Testing Admin Access ==="
+    echo -e "\n=== 5. Testing Admin Access ==="
     ADMIN_TEST=$(curl -s -X POST "${BASE_URL}/api/admin/test" \
       -H "Authorization: Bearer $ADMIN_TOKEN")
     echo "Response: $ADMIN_TEST"
     
-    echo -e "\n=== 5. Adding Role to User ==="
+    echo -e "\n=== 6. Adding Role to User ==="
     ADD_ROLE=$(curl -s -X POST "${BASE_URL}/api/admin/addRole?username=user1&roleName=USER" \
       -H "Authorization: Bearer $ADMIN_TOKEN")
     echo "Response: $ADD_ROLE"
@@ -597,29 +709,57 @@ else
     echo "Manually copy the token from the login response above"
 fi
 
-echo -e "\n=== 6. User Login ==="
+echo -e "\n=== 7. User Login (requires email verification first) ==="
+echo "Note: User must verify email before login will work"
 USER_LOGIN=$(curl -s -X POST "${BASE_URL}/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "user1", "password": "user123"}')
+  -d '{
+    "username": "user1",
+    "password": "user123"
+  }')
 echo "Response: $USER_LOGIN"
 
-echo -e "\n=== 7. Refresh Token Test ==="
-REFRESH_TOKEN=$(echo $USER_LOGIN | jq -r '.refreshToken')
-echo "Refresh Token: $REFRESH_TOKEN"
-
-echo -e "\n=== 8. Refresh Access Token ==="
-REFRESH_ACCESS_TOKEN=$(curl -s -X POST "${BASE_URL}/api/auth/refresh" \
+echo -e "\n=== 8. Test Password Reset Flow ==="
+FORGOT_PASSWORD=$(curl -s -X POST "${BASE_URL}/api/auth/forgot-password" \
   -H "Content-Type: application/json" \
-  -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
-echo "Response: $REFRESH_ACCESS_TOKEN"
+  -d '{
+    "email": "admin@example.com"
+  }')
+echo "Forgot Password Response: $FORGOT_PASSWORD"
+echo "Note: Check console logs for reset token"
+echo ""
+echo "To complete password reset, run:"
+echo "curl -X POST \"${BASE_URL}/api/auth/reset-password\" \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -d '{\"email\": \"admin@example.com\", \"token\": \"COPY_RESET_TOKEN_FROM_LOGS\", \"newPassword\": \"newpass123\"}'"
 
-echo -e "\n=== 9. Logout ==="
-LOGOUT=$(curl -s -X POST "${BASE_URL}/api/auth/logout" \
-  -H "Content-Type: application/json" \
-  -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
-echo "Response: $LOGOUT"
+echo -e "\n=== 9. Refresh Token Test ==="
+if command -v jq &> /dev/null && [[ $USER_LOGIN == *"token"* ]]; then
+    REFRESH_TOKEN=$(echo $USER_LOGIN | jq -r '.refreshToken')
+    echo "Refresh Token: $REFRESH_TOKEN"
+
+    echo -e "\n=== 10. Refresh Access Token ==="
+    REFRESH_ACCESS_TOKEN=$(curl -s -X POST "${BASE_URL}/api/auth/refresh" \
+      -H "Content-Type: application/json" \
+      -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
+    echo "Response: $REFRESH_ACCESS_TOKEN"
+
+    echo -e "\n=== 11. Logout ==="
+    LOGOUT=$(curl -s -X POST "${BASE_URL}/api/auth/logout" \
+      -H "Content-Type: application/json" \
+      -d "{\"refreshToken\": \"$REFRESH_TOKEN\"}")
+    echo "Response: $LOGOUT"
+fi
 
 echo -e "\n=== Test Complete ==="
+echo ""
+echo " Important Notes:"
+echo "1. Email verification is required for all new accounts"
+echo "2. Check console logs for verification/reset tokens in development"
+echo "3. In production, users receive emails with verification links"
+echo "4. Login will fail with 'Account is disabled' until email verified"
+echo "5. Password reset tokens expire after 1 hour"
+echo "6. Verification tokens expire after 24 hours"
 ```
 
 ## 6. API Client Import Instructions
@@ -721,7 +861,11 @@ into any modern API client:
 │   ├── POST Login Admin
 │   ├── POST Login User
 │   ├── POST Refresh Token
-│   └── POST Logout
+│   ├── POST Logout
+│   ├── POST Verify Email
+│   ├── POST Resend Verification Email
+│   ├── POST Forgot Password
+│   └── POST Reset Password
 ├── 📁 Admin Operations
 │   ├── POST Test Admin Access
 │   ├── POST Test No Auth

@@ -60,6 +60,7 @@ public class JwtUtil {
                     .claim("roles", userDetails.getAuthorities())
                     .setIssuedAt(new Date())
                     .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                    .setId(java.util.UUID.randomUUID().toString()) // Add unique JTI claim for uniqueness
                     .signWith(key)
                     .compact();
 
@@ -112,6 +113,12 @@ public class JwtUtil {
         logger.debug("Validating JWT token for user: {}", userDetails.getUsername());
 
         try {
+            // Handle null, empty or whitespace-only tokens early
+            if (token == null || token.trim().isEmpty()) {
+                logger.warn("JWT token validation failed for user: {} - token is null or empty", userDetails.getUsername());
+                return false;
+            }
+
             String extractedUsername = extractUsername(token);
             boolean isValid = extractedUsername.equals(userDetails.getUsername()) && !isTokenExpired(token);
 
