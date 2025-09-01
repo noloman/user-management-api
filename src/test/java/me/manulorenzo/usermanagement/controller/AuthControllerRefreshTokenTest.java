@@ -6,6 +6,7 @@ import me.manulorenzo.usermanagement.dto.RefreshTokenRequest;
 import me.manulorenzo.usermanagement.entity.RefreshToken;
 import me.manulorenzo.usermanagement.entity.Role;
 import me.manulorenzo.usermanagement.entity.User;
+import me.manulorenzo.usermanagement.exception.GlobalExceptionHandler;
 import me.manulorenzo.usermanagement.security.JwtUtil;
 import me.manulorenzo.usermanagement.service.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,7 +69,9 @@ class AuthControllerRefreshTokenTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(authController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
 
         User testUser = new User();
@@ -163,8 +166,10 @@ class AuthControllerRefreshTokenTest {
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Token refresh failed: Refresh token is not in database!"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Refresh token is not in database!"));
 
         verify(refreshTokenService).findByToken("nonexistent-token");
         verify(refreshTokenService, never()).verifyExpiration(any());
@@ -187,7 +192,9 @@ class AuthControllerRefreshTokenTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("Token refresh failed: Refresh token was expired. Please make a new signin request"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("EXPIRED_RESOURCE"))
+                .andExpect(jsonPath("$.message").value("Refresh token was expired. Please make a new signin request"));
 
         verify(refreshTokenService).findByToken("expired-token");
         verify(refreshTokenService).verifyExpiration(testRefreshToken);
@@ -225,8 +232,10 @@ class AuthControllerRefreshTokenTest {
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(logoutRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Logout failed: Database error"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Database error"));
 
         verify(refreshTokenService).deleteByToken("test-refresh-token-uuid");
     }
@@ -245,8 +254,10 @@ class AuthControllerRefreshTokenTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Login failed: Bad credentials"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Bad credentials"));
 
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(jwtUtil, never()).generateToken(any());

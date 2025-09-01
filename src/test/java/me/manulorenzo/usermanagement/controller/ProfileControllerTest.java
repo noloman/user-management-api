@@ -2,6 +2,7 @@ package me.manulorenzo.usermanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.manulorenzo.usermanagement.dto.UserProfile;
+import me.manulorenzo.usermanagement.exception.GlobalExceptionHandler;
 import me.manulorenzo.usermanagement.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,9 @@ public class ProfileControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(profileController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(profileController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -78,7 +81,10 @@ public class ProfileControllerTest {
 
         mockMvc.perform(get("/api/profile")
                         .principal(authentication))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("USER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("User not found"));
     }
 
     @Test
@@ -134,7 +140,7 @@ public class ProfileControllerTest {
     }
 
     @Test
-    void updateProfile_ShouldReturnBadRequest_WhenUserServiceThrowsException() throws Exception {
+    void updateProfile_ShouldReturnConflict_WhenUserServiceThrowsException() throws Exception {
         UserProfile updateRequest = new UserProfile();
         updateRequest.setEmail("existing@example.com");
 
@@ -146,7 +152,10 @@ public class ProfileControllerTest {
                         .principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("RESOURCE_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Email already exists"));
     }
 
     @Test
@@ -231,7 +240,7 @@ public class ProfileControllerTest {
     }
 
     @Test
-    void updateProfile_ShouldReturnError_WhenUserNotFound() throws Exception {
+    void updateProfile_ShouldReturnNotFound_WhenUserNotFound() throws Exception {
         UserProfile updateRequest = new UserProfile();
         updateRequest.setFullName("New Name");
 
@@ -243,6 +252,9 @@ public class ProfileControllerTest {
                         .principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("USER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("User not found"));
     }
 }

@@ -1,5 +1,6 @@
 package me.manulorenzo.usermanagement.controller;
 
+import me.manulorenzo.usermanagement.exception.GlobalExceptionHandler;
 import me.manulorenzo.usermanagement.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,9 @@ class AdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(adminController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(adminController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -79,8 +82,10 @@ class AdminControllerTest {
         mockMvc.perform(post("/api/admin/addRole")
                         .param("username", username)
                         .param("roleName", roleName))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to add role: User not found"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("USER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("User not found"));
     }
 
     @Test
@@ -96,8 +101,10 @@ class AdminControllerTest {
         mockMvc.perform(post("/api/admin/addRole")
                         .param("username", username)
                         .param("roleName", roleName))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to add role: Role not found"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Role not found"));
     }
 
     @Test
@@ -113,8 +120,10 @@ class AdminControllerTest {
         mockMvc.perform(post("/api/admin/addRole")
                         .param("username", username)
                         .param("roleName", roleName))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to add role: Database connection failed"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Database connection failed"));
     }
 
     @Test
@@ -148,8 +157,10 @@ class AdminControllerTest {
         mockMvc.perform(post("/api/admin/addRole")
                         .param("username", username)
                         .param("roleName", roleName))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to add role: Username cannot be empty"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Username cannot be empty"));
     }
 
     @Test
@@ -165,8 +176,10 @@ class AdminControllerTest {
         mockMvc.perform(post("/api/admin/addRole")
                         .param("username", username)
                         .param("roleName", roleName))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to add role: Role name cannot be empty"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Role name cannot be empty"));
     }
 
     @Test

@@ -1,0 +1,42 @@
+# Test-specific configuration
+logging:
+  level:
+    root: WARN
+    me.manulorenzo.usermanagement: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
+  # Disable file logging for tests to avoid /app/logs/ directory issues
+  file:
+    name:
+
+# Use H2 in-memory database for tests
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+# Test JWT settings
+jwt:
+  secret: test-secret-key-for-testing-only-needs-to-be-longer-than-32-chars
+  access-token:
+    expiration-ms: 60000
+  refresh-token:
+    expiration-ms: 120000
+
+# Test application settings
+app:
+  roles:
+    admin: ADMIN
+    user: USER
+  security:
+    first-user-admin: true
+  email:
+    from: test@usermanagement.com
+  base-url: http://localhost:8080

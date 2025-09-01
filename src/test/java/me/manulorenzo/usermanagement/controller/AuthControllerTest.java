@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import me.manulorenzo.usermanagement.dto.*;
 import me.manulorenzo.usermanagement.entity.RefreshToken;
 import me.manulorenzo.usermanagement.entity.User;
+import me.manulorenzo.usermanagement.exception.GlobalExceptionHandler;
 import me.manulorenzo.usermanagement.security.JwtUtil;
 import me.manulorenzo.usermanagement.service.RefreshTokenService;
 import me.manulorenzo.usermanagement.service.UserService;
@@ -63,7 +64,9 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(authController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -88,8 +91,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Registration failed: Username already exists"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("RESOURCE_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Username already exists"));
     }
 
     @Test
@@ -100,8 +105,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Registration failed: Email already exists"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("RESOURCE_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Email already exists"));
     }
 
     @Test
@@ -148,8 +155,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Login failed: Bad credentials"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("AUTHENTICATION_FAILED"))
+                .andExpect(jsonPath("$.message").value("Invalid credentials"));
     }
 
     @Test
@@ -164,8 +173,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Login failed: User account is disabled"));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("ACCOUNT_DISABLED"))
+                .andExpect(jsonPath("$.message").value("Account is disabled"));
     }
 
     @Test
@@ -208,8 +219,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Token refresh failed: Refresh token is not in database!"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Refresh token is not in database!"));
     }
 
     @Test
@@ -236,8 +249,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Logout failed: Database error"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Database error"));
     }
 
     @Test
@@ -269,7 +284,9 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("Email verification failed: Invalid verification token"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Invalid verification token"));
     }
 
     @Test
@@ -294,8 +311,10 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/resend-verification")
                         .param("email", email))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Failed to resend verification email: Email not found"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Email not found"));
     }
 
     @Test
@@ -324,8 +343,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Forgot password failed: Email not found"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Email not found"));
     }
 
     @Test
@@ -359,6 +380,8 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("Password reset failed: Invalid or expired reset token"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("EXPIRED_RESOURCE"))
+                .andExpect(jsonPath("$.message").value("Invalid or expired reset token"));
     }
 }
