@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Tag(name = "Admin", description = "Administrative operations (requires ADMIN role)")
 @SecurityRequirement(name = "Bearer Authentication")
 @RestController
@@ -74,7 +77,7 @@ public class AdminController {
     })
     @PostMapping("/addRole")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> addRole(
+    public ResponseEntity<Map<String, String>> addRole(
             @Parameter(description = "Username of the target user (case-sensitive)", required = true, example = "john_doe")
             @RequestParam String username,
             @Parameter(description = "Name of the role to assign (case-sensitive)", required = true, example = "MODERATOR")
@@ -87,7 +90,12 @@ public class AdminController {
         userService.addRoleToUser(username, roleName);
 
         logger.info("Successfully added role {} to user {}", roleName, username);
-        return ResponseEntity.ok("Role " + roleName + " successfully added to user " + username);
+        // Use a JSON response object for safe output
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Role successfully added.");
+        response.put("role", roleName);
+        response.put("username", username);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(

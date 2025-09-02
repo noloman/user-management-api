@@ -64,7 +64,9 @@ class AdminControllerTest {
                         .param("username", username)
                         .param("roleName", roleName))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Role USER successfully added to user testuser"));
+                .andExpect(jsonPath("$.message").value("Role successfully added."))
+                .andExpect(jsonPath("$.role").value(roleName))
+                .andExpect(jsonPath("$.username").value(username));
 
         verify(userService).addRoleToUser(username, roleName);
     }
@@ -221,7 +223,9 @@ class AdminControllerTest {
                         .param("username", username)
                         .param("roleName", roleName))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Role MODERATOR successfully added to user regularuser"));
+                .andExpect(jsonPath("$.message").value("Role successfully added."))
+                .andExpect(jsonPath("$.role").value(roleName))
+                .andExpect(jsonPath("$.username").value(username));
 
         verify(userService).addRoleToUser(username, roleName);
     }
@@ -238,7 +242,9 @@ class AdminControllerTest {
                         .param("username", username)
                         .param("roleName", roleName))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Role USER_ROLE successfully added to user test@user"));
+                .andExpect(jsonPath("$.message").value("Role successfully added."))
+                .andExpect(jsonPath("$.role").value(roleName))
+                .andExpect(jsonPath("$.username").value(username));
 
         verify(userService).addRoleToUser(username, roleName);
     }
@@ -255,7 +261,9 @@ class AdminControllerTest {
                         .param("username", username)
                         .param("roleName", roleName))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Role SUPER_LONG_ROLE_NAME_THAT_MIGHT_CAUSE_ISSUES successfully added to user " + username));
+                .andExpect(jsonPath("$.message").value("Role successfully added."))
+                .andExpect(jsonPath("$.role").value(roleName))
+                .andExpect(jsonPath("$.username").value(username));
 
         verify(userService).addRoleToUser(username, roleName);
     }
@@ -272,7 +280,9 @@ class AdminControllerTest {
                         .param("username", username)
                         .param("roleName", roleName))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Role admin successfully added to user testuser"));
+                .andExpect(jsonPath("$.message").value("Role successfully added."))
+                .andExpect(jsonPath("$.role").value(roleName))
+                .andExpect(jsonPath("$.username").value(username));
 
         verify(userService).addRoleToUser(username, roleName);
     }
