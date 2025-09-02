@@ -101,7 +101,7 @@ public class UserService {
             logger.info("User '{}' registered successfully (disabled, pending email verification)", user.getUsername());
 
             // Send verification email
-            emailService.sendVerificationEmail(user);
+            emailService.queueVerificationEmail(user);
 
         } catch (Exception e) {
             logger.error("Error during registration for user {}: {}", request.getUsername(), e.getMessage(), e);
@@ -214,7 +214,7 @@ public class UserService {
         logger.info("Email successfully verified for user: {}", user.getUsername());
 
         // Send welcome email
-        emailService.sendWelcomeEmail(user);
+        emailService.queueWelcomeEmail(user);
 
         return "Email verification successful";
     }
@@ -232,7 +232,7 @@ public class UserService {
         userRepository.save(user);
 
         // Send reset email
-        emailService.sendPasswordResetEmail(user);
+        emailService.queuePasswordResetEmail(user);
 
         logger.info("Password reset email sent to: {}", request.getEmail());
         return "Password reset email sent";
@@ -284,7 +284,7 @@ public class UserService {
         userRepository.save(user);
 
         // Send verification email
-        emailService.sendVerificationEmail(user);
+        emailService.queueVerificationEmail(user);
 
         logger.info("Verification email resent to: {}", email);
         return "Verification email sent";

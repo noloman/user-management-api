@@ -27,6 +27,12 @@ spring:
         order_inserts: true
         order_updates: true
 
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
   # Unified email configuration
   mail:
     host: ${MAIL_HOST:localhost}

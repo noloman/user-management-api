@@ -67,7 +67,7 @@ class UserServiceTest {
         userService.register(request);
 
         verify(userRepo).save(any(User.class));
-        verify(emailService).sendVerificationEmail(any(User.class));
+        verify(emailService).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -82,7 +82,7 @@ class UserServiceTest {
 
         userService.register(request);
         verify(userRepo).save(any(User.class));
-        verify(emailService).sendVerificationEmail(any(User.class));
+        verify(emailService).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -97,7 +97,7 @@ class UserServiceTest {
 
         userService.register(request);
         verify(userRepo).save(any(User.class));
-        verify(emailService).sendVerificationEmail(any(User.class));
+        verify(emailService).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -107,7 +107,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.register(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendVerificationEmail(any(User.class));
+        verify(emailService, never()).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -118,7 +118,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.register(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendVerificationEmail(any(User.class));
+        verify(emailService, never()).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -132,7 +132,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.register(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendVerificationEmail(any(User.class));
+        verify(emailService, never()).queueVerificationEmail(any(User.class));
     }
 
     // Email Verification Tests
@@ -159,7 +159,7 @@ class UserServiceTest {
         assertNull(user.getVerificationToken());
         assertNull(user.getVerificationTokenExpiry());
         verify(userRepo).save(user);
-        verify(emailService).sendWelcomeEmail(user);
+        verify(emailService).queueWelcomeEmail(user);
     }
 
     @Test
@@ -172,7 +172,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.verifyEmail(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendWelcomeEmail(any(User.class));
+        verify(emailService, never()).queueWelcomeEmail(any(User.class));
     }
 
     @Test
@@ -190,7 +190,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.verifyEmail(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendWelcomeEmail(any(User.class));
+        verify(emailService, never()).queueWelcomeEmail(any(User.class));
     }
 
     @Test
@@ -208,7 +208,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.verifyEmail(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendWelcomeEmail(any(User.class));
+        verify(emailService, never()).queueWelcomeEmail(any(User.class));
     }
 
     @Test
@@ -226,7 +226,7 @@ class UserServiceTest {
         assertNotNull(user.getVerificationToken());
         assertNotNull(user.getVerificationTokenExpiry());
         verify(userRepo).save(user);
-        verify(emailService).sendVerificationEmail(user);
+        verify(emailService).queueVerificationEmail(user);
     }
 
     @Test
@@ -236,7 +236,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.resendVerificationEmail(email));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendVerificationEmail(any(User.class));
+        verify(emailService, never()).queueVerificationEmail(any(User.class));
     }
 
     @Test
@@ -252,7 +252,7 @@ class UserServiceTest {
 
         assertEquals("Email already verified", result);
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendVerificationEmail(any(User.class));
+        verify(emailService, never()).queueVerificationEmail(any(User.class));
     }
 
     // Password Reset Tests
@@ -272,7 +272,7 @@ class UserServiceTest {
         assertNotNull(user.getPasswordResetToken());
         assertNotNull(user.getPasswordResetTokenExpiry());
         verify(userRepo).save(user);
-        verify(emailService).sendPasswordResetEmail(user);
+        verify(emailService).queuePasswordResetEmail(user);
     }
 
     @Test
@@ -284,7 +284,7 @@ class UserServiceTest {
 
         assertThrows(RuntimeException.class, () -> userService.forgotPassword(request));
         verify(userRepo, never()).save(any(User.class));
-        verify(emailService, never()).sendPasswordResetEmail(any(User.class));
+        verify(emailService, never()).queuePasswordResetEmail(any(User.class));
     }
 
     @Test

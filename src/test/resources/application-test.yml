@@ -9,18 +9,7 @@ logging:
   file:
     name:
 
-# Use H2 in-memory database for tests
-spring:
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    database-platform: org.hibernate.dialect.H2Dialect
-    show-sql: false
+# (NO database or RabbitMQ config here: these are provided by Testcontainers + DynamicPropertySource)
 
 # Test JWT settings
 jwt:

@@ -1,3 +1,5 @@
+# This is the development compose file
+# Includes MailHog with Web UI, exposes RabbitMQ management UI, uses basic local credentials
 services:
   # PostgreSQL Database
   postgres:
@@ -22,6 +24,36 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: usermanagement-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # Management UI (enabled in dev)
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: usermanagement-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "1025" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Spring Boot Application
   app:
     build:
@@ -42,12 +74,20 @@ services:
       - LOG_LEVEL_APP=DEBUG
       - LOG_LEVEL_SQL=WARN
       # Email configuration (development mode)
-      - MAIL_HOST=localhost
+      - MAIL_HOST=mailhog
       - MAIL_PORT=1025
       - APP_EMAIL_FROM=noreply@usermanagement.com
       - APP_BASE_URL=http://localhost:8082
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
         condition: service_healthy
     networks:
       - app-network

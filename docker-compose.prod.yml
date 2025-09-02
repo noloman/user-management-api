@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: usermanagement-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: usermanagement_prod
+      POSTGRES_USER: produser
+      POSTGRES_PASSWORD: CHANGE_ME_STRONG_PASSWORD
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U produser -d usermanagement_prod" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: usermanagement-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      # Do NOT expose management UI in prod
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: usermanagement-app
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      # Database configuration
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/usermanagement_prod
+      - SPRING_DATASOURCE_USERNAME=produser
+      - SPRING_DATASOURCE_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+      # Email configuration (production SMTP)
+      - MAIL_HOST=smtp.sendgrid.net    # EXAMPLE: update as needed
+      - MAIL_PORT=587
+      - MAIL_USERNAME=YOUR_SMTP_USER   # Use env vars/secrets for actual deployment
+      - MAIL_PASSWORD=YOUR_SMTP_PASS
+      - APP_EMAIL_FROM=your@example.com
+      - APP_BASE_URL=https://yourdomain.com
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - app_logs:/app/logs
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
