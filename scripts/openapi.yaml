@@ -1,0 +1,804 @@
+openapi: 3.1.0
+info:
+  title: User Management API
+  description: 'A comprehensive user management system with JWT authentication, role-based
+    authorization, and PostgreSQL database integration.
+
+
+    **Key Features:**
+
+    - User registration & authentication
+
+    - JWT access and refresh token support (refresh = 7 days, access = 15 minutes)
+
+    - Role-based access control (RBAC) with ADMIN/USER roles
+
+    - Profile management (get/update)
+
+    - Secure logout and refresh token revocation
+
+    - **Docker-first setup**: PostgreSQL runs as a Docker container by default
+
+
+    **Quick Start (Docker-first):**
+
+    1. Start with `./docker-scripts/start.sh` (requires Docker)
+
+    2. Open http://localhost:8082/swagger-ui.html
+
+    3. Register a user at `/api/auth/register` (first user gets ADMIN role)
+
+    4. Login at `/api/auth/login` to get access/refresh tokens
+
+    5. Use the *access token* in Authorization header for all protected endpoints
+
+    6. Use *refresh token* at `/api/auth/refresh` to renew your access token
+
+    7. Update your profile at `/api/profile` (GET/PUT)
+
+    8. Additional roles managed at `/api/admin/*`
+
+
+    **Authentication Tip:**
+
+    Use the `Authorize` button below to enter your JWT access token.
+
+    - Format: `Bearer your-jwt-token-here`
+
+    - Refresh token is required for token renewal (see `/api/auth/refresh`)
+
+
+    **Note:**
+
+    - This API runs with **PostgreSQL in Docker**. H2 database exists only for testing.
+
+    - Local dev (`application.yml`) also assumes Docker-based PostgreSQL on `localhost:5432`.
+
+    '
+  contact:
+    name: Manuel Lorenzo Parejo
+    url: https://github.com/noloman/usermanagement
+    email: manulorenzop@gmail.com
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  version: 1.0.0
+servers:
+- url: http://localhost:8082
+  description: Generated server url
+tags:
+- name: Admin
+  description: Administrative operations (requires ADMIN role)
+- name: Profile
+  description: Endpoints for viewing and updating your user profile. Requires authentication.
+- name: Authentication
+  description: User authentication and account management endpoints. Handles registration,
+    login, logout, email verification, and password reset functionality.
+paths:
+  /api/profile:
+    get:
+      tags:
+      - Profile
+      summary: Get current user's profile
+      description: Returns the current logged-in user's full profile data. Requires
+        a valid JWT access token.
+      operationId: getProfile
+      responses:
+        '200':
+          description: Profile fetched successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '404':
+          description: User not found
+        '401':
+          description: Access token missing or invalid
+    put:
+      tags:
+      - Profile
+      summary: Update current user's profile
+      description: Updates profile fields for the currently authenticated user. Requires
+        valid JWT access token.
+      operationId: updateProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+        required: true
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid data supplied or email/username already exists
+        '404':
+          description: User not found
+        '401':
+          description: Access token missing or invalid
+  /api/auth/verify-email:
+    post:
+      tags:
+      - Authentication
+      summary: Verify user email address
+      description: Verifies the user's email address using the verification token
+        sent during registration. Once verified, the user account will be enabled
+        and can be used for authentication.
+      operationId: verifyEmail
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      responses:
+        '200':
+          description: Email verified successfully - account enabled
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid or expired verification token
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during verification
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/reset-password:
+    post:
+      tags:
+      - Authentication
+      summary: Reset user password
+      description: Resets the user's password using the reset token received via email.
+        The token is validated and if valid, the user's password is updated.
+      operationId: resetPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid or expired reset token, or invalid password format
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during password reset
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/resend-verification:
+    post:
+      tags:
+      - Authentication
+      summary: Resend email verification
+      description: Resends the email verification link to the specified email address.
+        This can be used if the original verification email was lost or expired.
+      operationId: resendVerificationEmail
+      parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Verification email resent successfully
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Email already verified or invalid email format
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User with specified email not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error - failed to send email
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/register:
+    post:
+      tags:
+      - Authentication
+      summary: Register a new user account
+      description: Creates a new user account with the provided information. The first
+        registered user automatically receives ADMIN privileges, while subsequent
+        users receive USER privileges. A verification email will be sent to the provided
+        email address.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '200':
+          description: User registered successfully - verification email sent
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid request data or validation errors
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username or email already exists
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during registration
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh access token
+      description: Uses a valid refresh token to generate a new access token. This
+        allows clients to maintain authentication without requiring the user to log
+        in again.
+      operationId: refreshToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+        required: true
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          description: Invalid request format or expired refresh token
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Refresh token not found or user not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during token refresh
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Logout user
+      description: Invalidates the user's refresh token, effectively logging them
+        out. The access token will remain valid until it expires naturally.
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+        required: true
+      responses:
+        '200':
+          description: Logout successful - refresh token invalidated
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid request format or token not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during logout
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Authenticate user and obtain tokens
+      description: Authenticates user credentials and returns JWT access token and
+        refresh token. The access token is used for API authentication, while the
+        refresh token can be used to obtain new access tokens when they expire.
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Authentication successful - tokens returned
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Authentication failed - invalid credentials
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account disabled - email verification required
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request format or missing fields
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during authentication
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/forgot-password:
+    post:
+      tags:
+      - Authentication
+      summary: Request password reset
+      description: Sends a password reset link to the user's registered email address.
+        The link contains a secure token that allows the user to reset their password.
+      operationId: forgotPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Password reset email sent successfully
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid email format
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User with specified email not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error - failed to send email
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/admin/test:
+    post:
+      tags:
+      - Admin
+      summary: Test admin authentication
+      description: Test endpoint to verify admin authentication and authorization
+        functionality. Returns information about the current authenticated admin user
+        and their authorities. Useful for debugging authentication issues.
+      operationId: testAdminAccess
+      responses:
+        '200':
+          description: Admin access confirmed - authentication successful
+          content:
+            '*/*':
+              schema:
+                type: string
+        '401':
+          description: Authentication failed - Invalid or missing JWT token
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied - ADMIN role required
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - Bearer Authentication: []
+  /api/admin/test-no-auth:
+    post:
+      tags:
+      - Admin
+      summary: Test endpoint (no authentication)
+      description: Public test endpoint for system health checks and debugging purposes.
+        Does not require authentication or any specific role. Should only be used
+        for development and testing.
+      operationId: testWithoutAuth
+      responses:
+        '200':
+          description: Test successful - endpoint is working
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - Bearer Authentication: []
+  /api/admin/addRole:
+    post:
+      tags:
+      - Admin
+      summary: Add role to user
+      description: Adds a specific role to an existing user. Only accessible by users
+        with ADMIN role.
+      operationId: addRole
+      parameters:
+      - name: username
+        in: query
+        description: Username of the target user (case-sensitive)
+        required: true
+        schema:
+          type: string
+        example: john_doe
+      - name: roleName
+        in: query
+        description: Name of the role to assign (case-sensitive)
+        required: true
+        schema:
+          type: string
+        example: MODERATOR
+      responses:
+        '200':
+          description: Role added successfully to user
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          description: Invalid request - missing or empty parameters
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required - Invalid or missing JWT token
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied - ADMIN role required
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found or role not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already has the specified role
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during role assignment
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - Bearer Authentication: []
+components:
+  schemas:
+    UserProfile:
+      type: object
+      description: User profile object containing public and editable fields with
+        validation constraints
+      example:
+        username: john_doe
+        email: john@example.com
+        fullName: John Doe
+        bio: Software developer
+        imageUrl: https://example.com/image.jpg
+      properties:
+        username:
+          type: string
+          description: Username (3-50 characters, alphanumeric and underscores only)
+          example: john_doe
+          maxLength: 50
+          minLength: 3
+          pattern: ^[a-zA-Z0-9_]{3,50}$
+        email:
+          type: string
+          description: Valid email address
+          example: john@example.com
+          maxLength: 255
+          minLength: 0
+        fullName:
+          type: string
+          description: Full name (optional, max 100 characters)
+          example: John Doe
+          maxLength: 100
+          minLength: 0
+        bio:
+          type: string
+          description: Bio/description (optional, max 500 characters)
+          example: Software developer
+          maxLength: 500
+          minLength: 0
+        imageUrl:
+          type: string
+          description: Profile image URL (optional, must be valid URL)
+          example: https://example.com/image.jpg
+          maxLength: 500
+          minLength: 0
+    VerifyEmailRequest:
+      type: object
+      description: Email verification request with validation constraints
+      properties:
+        email:
+          type: string
+          description: Valid email address to verify
+          example: john@example.com
+          maxLength: 255
+          minLength: 0
+        token:
+          type: string
+          description: Verification token received via email
+          example: abc123-def456-ghi789
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+      - token
+    ErrorResponse:
+      type: object
+      description: Standard error response format
+      properties:
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type/category
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Main error message
+          example: Invalid input provided
+        details:
+          type: string
+          description: Detailed error description
+          example: The email field must be a valid email address
+        path:
+          type: string
+          description: API endpoint that caused the error
+          example: /api/auth/register
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+        validationErrors:
+          type: array
+          description: List of validation errors (if applicable)
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    ValidationError:
+      type: object
+      description: Individual validation error
+      properties:
+        field:
+          type: string
+          description: Field name that failed validation
+          example: email
+        rejectedValue:
+          description: Rejected value
+          example: invalid-email
+        message:
+          type: string
+          description: Validation error message
+          example: must be a valid email address
+    ResetPasswordRequest:
+      type: object
+      description: Password reset request with validation constraints
+      properties:
+        email:
+          type: string
+          description: Valid email address
+          example: john@example.com
+          maxLength: 255
+          minLength: 0
+        token:
+          type: string
+          description: Password reset token received via email
+          example: abc123-def456-ghi789
+          maxLength: 255
+          minLength: 0
+        newPassword:
+          type: string
+          description: New password (minimum 8 characters, must contain at least one
+            letter and one number)
+          example: newSecurePassword123
+          maxLength: 128
+          minLength: 8
+          pattern: ^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$
+      required:
+      - email
+      - newPassword
+      - token
+    RegisterRequest:
+      type: object
+      description: User registration request with validation constraints
+      properties:
+        username:
+          type: string
+          description: Desired username (3-50 characters, alphanumeric and underscores
+            only)
+          example: johndoe
+          maxLength: 50
+          minLength: 3
+          pattern: ^[a-zA-Z0-9_]{3,50}$
+        email:
+          type: string
+          description: Valid email address
+          example: john@example.com
+          maxLength: 255
+          minLength: 0
+        password:
+          type: string
+          description: Password (minimum 8 characters, must contain at least one letter
+            and one number)
+          example: securePassword123
+          maxLength: 128
+          minLength: 8
+          pattern: ^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$
+      required:
+      - email
+      - password
+      - username
+    RefreshTokenRequest:
+      type: object
+      description: Refresh token request with validation constraints
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token obtained during login
+          example: eyJhbGciOiJIUzI1NiJ9...
+          minLength: 1
+      required:
+      - refreshToken
+    RefreshTokenResponse:
+      type: object
+      description: Response object containing new access token after refresh
+      properties:
+        accessToken:
+          type: string
+          description: New JWT access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    LoginRequest:
+      type: object
+      description: Request object for user login
+      properties:
+        username:
+          type: string
+          description: Username of the account
+          example: john_doe
+          maxLength: 255
+          minLength: 0
+        password:
+          type: string
+          description: Password of the account
+          example: mySecurePassword123
+          maxLength: 128
+          minLength: 0
+      required:
+      - password
+      - username
+    LoginResponse:
+      type: object
+      description: Response object containing JWT tokens after successful login
+      properties:
+        token:
+          type: string
+          description: JWT access token for API authentication
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          description: Refresh token for obtaining new access tokens
+          example: 550e8400-e29b-41d4-a716-446655440000
+    ForgotPasswordRequest:
+      type: object
+      description: Forgot password request with validation constraints
+      properties:
+        email:
+          type: string
+          description: Valid email address for password reset
+          example: john@example.com
+          maxLength: 255
+          minLength: 0
+      required:
+      - email
+  securitySchemes:
+    Bearer Authentication:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,11 +1,15 @@
 #!/bin/bash
-# Exports OpenAPI spec from running Docker app to ./openapi.json and ./openapi.yaml
+# Exports OpenAPI spec from running Docker app to scripts/openapi.json and scripts/openapi.yaml
 
 set -e
 
 OPENAPI_URL="http://localhost:8082/v3/api-docs"
-OUTPUT_JSON="openapi.json"
-OUTPUT_YAML="openapi.yaml"
+OUTPUT_DIR="../scripts"
+OUTPUT_JSON="$OUTPUT_DIR/openapi.json"
+OUTPUT_YAML="$OUTPUT_DIR/openapi.yaml"
+
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
 
 # Wait for the app to be available (simple check, max 30s)
 for i in {1..30}; do
@@ -36,8 +40,17 @@ if command -v yq > /dev/null 2>&1; then
   yq -P . "$OUTPUT_JSON" > "$OUTPUT_YAML"
   echo "OpenAPI spec also exported to $OUTPUT_YAML using yq."
 elif command -v python3 > /dev/null 2>&1; then
-  python3 -c 'import sys, json, yaml; yaml.safe_dump(json.load(sys.stdin), sys.stdout, sort_keys=False)' < "$OUTPUT_JSON" > "$OUTPUT_YAML"
-  echo "OpenAPI spec also exported to $OUTPUT_YAML using Python."
+  VENV_DIR=".openapi-venv"
+  if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    pip install pyyaml
+  else
+    source "$VENV_DIR/bin/activate"
+  fi
+  python -c 'import sys, json, yaml; yaml.safe_dump(json.load(sys.stdin), sys.stdout, sort_keys=False)' < "$OUTPUT_JSON" > "$OUTPUT_YAML"
+  deactivate
+  echo "OpenAPI spec also exported to $OUTPUT_YAML using Python/venv."
 else
   echo "Could not convert JSON to YAML: yq or Python3 required. Please install yq (https://github.com/mikefarah/yq) or Python."
   exit 3
