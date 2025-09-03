@@ -86,6 +86,28 @@ For full details use Swagger. Main endpoints:
 - `/api/admin/addRole` (ADMIN only)
 - `/actuator/health`
 
+## API Testing with Bruno
+
+You have two ways to import the OpenAPI spec into Bruno for API testing:
+
+1. **Manual Import (recommended if spec does not change at runtime):**
+   - Use the provided `openapi.yaml` file in the project root.
+   - In Bruno, select `Import > OpenAPI` and choose `openapi.yaml`.
+
+2. **Automated Export from Running Docker App:**
+   - Run your app as usual:
+     ```bash
+     ./docker-scripts/start.sh
+     ```
+   - Use the provided script to download the latest live OpenAPI spec:
+     ```bash
+     ./docker-scripts/export-openapi.sh
+     ```
+   - This will save `openapi.json` in the project root for Bruno import.
+   - Use `Import > OpenAPI` in Bruno and select the new file.
+
+_Use the manual method for static specs, or the script if your docs reflect live changes or annotations!_
+
 ## RBAC & Roles
 
 - First registered user: `ADMIN`. All others: `USER`.
@@ -97,6 +119,7 @@ For full details use Swagger. Main endpoints:
 - `start.sh`: App + DB
 - `db-only.sh`: DB only
 - `stop.sh`: Stop all
+- `export-openapi.sh`: Export OpenAPI spec for Bruno import
 
 ## Dev Notes
 
