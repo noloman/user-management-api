@@ -106,6 +106,13 @@ You have two ways to import the OpenAPI spec into Bruno for API testing:
    - This will save `openapi.json` in the project root for Bruno import.
    - Use `Import > OpenAPI` in Bruno and select the new file.
 
+When you use the `export-openapi.sh` script, both `openapi.json` and `openapi.yaml` are automatically updated in your
+project root. The script will convert JSON to YAML using yq (if available) or Python. If neither is installed, you'll
+receive a helpful error message.
+
+- For YAML: In Bruno, select `Import > OpenAPI` and choose `openapi.yaml`.
+- For JSON: You can also use `openapi.json` if preferred or for tools requiring JSON format.
+
 _Use the manual method for static specs, or the script if your docs reflect live changes or annotations!_
 
 ## RBAC & Roles
