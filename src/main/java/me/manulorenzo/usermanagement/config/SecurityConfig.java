@@ -26,10 +26,6 @@ public class SecurityConfig {
         logger.info("Configuring Security Filter Chain");
 
         SecurityFilterChain chain = http
-                .csrf(csrf -> {
-                    logger.debug("Disabling CSRF protection");
-                    csrf.disable();
-                })
                 .sessionManagement(session -> {
                     logger.debug("Setting session creation policy to STATELESS");
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
